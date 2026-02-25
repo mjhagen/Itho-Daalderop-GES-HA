@@ -26,7 +26,7 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 3. Klik rechtsbovenin op de **︙** (drie puntjes)
 4. Selecteer **Custom repositories**
 5. Voeg toe:
-   - **Repository**: `https://github.com/marinuz/itho-daalderop-ha`
+   - **Repository**: `https://github.com/marinuz/Itho-Daalderop-GES-HA.git`
    - **Category**: `Integration`
 6. Klik op **Add**
 7. Zoek naar "Itho Daalderop" en klik op **Download**
