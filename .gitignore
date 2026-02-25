@@ -5,6 +5,12 @@ __pycache__/
 *.so
 .Python
 
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
 # Sensitive files in tests folder
 tests/config.py
 tests/token.txt

@@ -85,19 +85,39 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         session = async_get_clientsession(self.hass)
         
         try:
+            _LOGGER.debug("Requesting SSO URL: %s", sso_url)
             async with session.get(sso_url, timeout=10) as response:
+                _LOGGER.debug("SSO response status: %s", response.status)
+                _LOGGER.debug("SSO response headers: %s", dict(response.headers))
+                
                 if response.status == 200:
-                    data = await response.json()
+                    # Force JSON parsing regardless of Content-Type header
+                    # Server returns text/html but body is actually JSON
+                    data = await response.json(content_type=None)
+                    _LOGGER.debug("SSO response data keys: %s", list(data.keys()))
                     self.azure_url = data.get("sso")
                     
                     if not self.azure_url:
+                        _LOGGER.error("No 'sso' key in response data: %s", data)
                         return self.async_abort(reason="no_azure_url")
                     
+                    _LOGGER.debug("Azure B2C URL received: %s", self.azure_url[:50])
                     # Open browser and wait for callback
                     return await self.async_step_auth_callback()
+                else:
+                    # Non-200 status
+                    text = await response.text()
+                    _LOGGER.error(
+                        "SSO server returned status %s. Response: %s",
+                        response.status,
+                        text[:500]
+                    )
+                    return self.async_abort(reason="cannot_connect")
                     
         except Exception as err:
-            _LOGGER.error("Error getting Azure URL: %s", err)
+            _LOGGER.error("Error getting Azure URL: %s (type: %s)", err, type(err).__name__)
+            import traceback
+            _LOGGER.error("Traceback: %s", traceback.format_exc())
             return self.async_abort(reason="cannot_connect")
 
     async def async_step_auth_callback(
