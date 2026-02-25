@@ -127,23 +127,23 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            callback_url = user_input.get("callback_url", "").strip()
+            token_input = user_input.get("token", "").strip()
             
-            _LOGGER.debug("Received callback input (length: %d)", len(callback_url))
+            _LOGGER.debug("Received token input (length: %d)", len(token_input))
             
-            # Extract token from URL or direct paste
-            token = self._extract_token_from_url(callback_url)
+            # Extract token from URL or use direct token
+            token = self._extract_token_from_url(token_input)
             
             if not token:
                 _LOGGER.error("Failed to extract token from input")
-                errors["callback_url"] = "invalid_callback"
+                errors["token"] = "invalid_token"
             else:
                 # First validate it's a proper JWT
                 token_data = self._decode_token(token)
                 
                 if not token_data:
                     _LOGGER.error("Token could not be decoded - invalid JWT format")
-                    errors["callback_url"] = "invalid_token"
+                    errors["token"] = "invalid_token"
                 else:
                     _LOGGER.info("Token decoded successfully")
                     self.access_token = token
@@ -178,64 +178,53 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         # Use specific error message from validation
                         _LOGGER.error("Token validation failed: %s", error_key)
-                        errors["callback_url"] = error_key or "invalid_token"
+                        errors["token"] = error_key or "invalid_token"
 
         # Show form with browser link
         return self.async_show_form(
             step_id="auth_callback",
             data_schema=vol.Schema(
                 {
-                    vol.Required("callback_url"): str,
+                    vol.Required("token"): str,
                 }
             ),
             errors=errors,
             description_placeholders={
                 "login_url": self.azure_url or "https://itho-tussenlaag.bettywebblocks.com/sso/initiate",
-                "instructions": (
-                    "1. Klik op de link hieronder om in te loggen\n"
-                    "2. Log in met je Itho Daalderop account\n"
-                    "3. Na inloggen krijg je een foutmelding - dit is normaal!\n"
-                    "4. Kopieer de VOLLEDIGE URL uit je browser adresbalk\n"
-                    "5. De URL ziet er zo uit:\n"
-                    "   climateconnect://login?token=eyJ...\n"
-                    "6. Plak de volledige URL hieronder\n\n"
-                    "TIP: Je kunt ook alleen de token plakken (begint met eyJ...)"
-                ),
             },
         )
 
-    def _extract_token_from_url(self, url: str) -> str | None:
-        """Extract JWT token from callback URL or direct token input.
+    def _extract_token_from_url(self, token_input: str) -> str | None:
+        """Extract JWT token from input.
         
         Supports:
+        - Direct token paste: eyJ... (preferred)
         - Full callback URL: climateconnect://login?token=xxx
-        - Direct token paste: eyJ...
-        - URL with extra whitespace
         """
         # Clean input
-        url = url.strip()
+        token_input = token_input.strip()
         
-        # Try to extract from full callback URL
-        # Pattern matches: climateconnect://login?token=XXXXX or climateconnect://login/?token=XXXXX
+        # Primary method: direct JWT token (starts with eyJ)
+        if token_input.startswith("eyJ"):
+            # Basic JWT validation - should have 3 parts separated by dots
+            parts = token_input.split(".")
+            if len(parts) == 3:
+                _LOGGER.debug("Direct JWT token detected (length: %d)", len(token_input))
+                return token_input
+            else:
+                _LOGGER.warning("Invalid JWT format - expected 3 parts, got %d", len(parts))
+                return None
+        
+        # Fallback: try to extract from callback URL
         pattern = r"climateconnect://login/?[?]token=([A-Za-z0-9_\-\.]+)"
-        match = re.search(pattern, url)
+        match = re.search(pattern, token_input)
         
         if match:
             token = match.group(1)
             _LOGGER.debug("Token extracted from callback URL (length: %d)", len(token))
             return token
         
-        # Check if it's a direct JWT token paste (JWTs start with eyJ)
-        if url.startswith("eyJ"):
-            # Basic JWT validation - should have 3 parts separated by dots
-            parts = url.split(".")
-            if len(parts) == 3:
-                _LOGGER.debug("Direct JWT token detected (length: %d)", len(url))
-                return url
-            else:
-                _LOGGER.warning("Invalid JWT format - expected 3 parts, got %d", len(parts))
-        
-        _LOGGER.error("Could not extract token from input: %s", url[:50])
+        _LOGGER.error("Could not extract token from input (must start with eyJ or be a callback URL): %s", token_input[:50])
         return None
 
     def _decode_token(self, token: str) -> dict[str, Any] | None:

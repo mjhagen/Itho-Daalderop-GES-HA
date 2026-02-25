@@ -10,16 +10,15 @@
       },
       "auth_callback": {
         "title": "Inloggen bij Itho Daalderop",
-        "description": "### Stappen om in te loggen:\n\n1. Klik op de onderstaande link om de login pagina te openen\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een **foutmelding** - dit is normaal!\n4. Kopieer de **VOLLEDIGE URL** uit je browser adresbalk\n5. De URL ziet er zo uit: `climateconnect://login?token=eyJ...`\n6. Plak de volledige URL hieronder\n\n**TIP:** Je kunt ook alleen de token plakken (begint met `eyJ...`)\n\n### Login URL:\n[Klik hier om in te loggen]({login_url})\n\n",
+        "description": "### Stappen:\n\n1. [Klik hier om in te loggen]({login_url})\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een foutmelding - **dit is normaal!**\n4. Kopieer de **URL uit je browser adresbalk**\n5. Zoek het stuk dat begint met `eyJ` (bijvoorbeeld: `eyJ0eXAiOiJKV1QiLCJhbG...`)\n6. Kopieer **alles vanaf eyJ tot het einde** en plak hieronder\n\n**Let op:** De token begint altijd met `eyJ` en is een lange string\n\n",
         "data": {
-          "callback_url": "Callback URL of token"
+          "token": "Token (begint met eyJ)"
         }
       }
     },
     "error": {
       "invalid_serial": "Ongeldig serienummer",
-      "invalid_callback": "Ongeldige callback URL. Zorg dat de URL begint met: climateconnect://login?token=",
-      "invalid_token": "Token kon niet worden gevalideerd. Probeer opnieuw in te loggen",
+      "invalid_token": "Ongeldige token. De token moet beginnen met eyJ en bestaat uit 3 delen gescheiden door punten",
       "serial_not_linked": "Dit serienummer is niet gekoppeld aan jouw account. Voeg het apparaat eerst toe in de Itho Daalderop app",
       "serial_not_found": "Serienummer niet gevonden in het systeem. Controleer of het serienummer correct is",
       "api_timeout": "API reageert niet. Probeer het later opnieuw",
