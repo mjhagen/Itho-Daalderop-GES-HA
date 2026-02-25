@@ -23,7 +23,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.WATER_HEATER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.WATER_HEATER]
 
 # Service schemas
 SERVICE_BOOST_BOILER = "boost_boiler"
@@ -96,6 +96,7 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, api_client: IthoApiClient) -> None:
         """Initialize."""
         self.api_client = api_client
+        self._update_count = 0  # Track updates for selective polling
 
         super().__init__(
             hass,
@@ -107,10 +108,20 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            # Fetch core data in parallel
+            self._update_count += 1
+            
+            # Always fetch critical data (device status and mode)
             device_status = await self.api_client.async_get_device_status()
             device_mode = await self.api_client.async_get_device_mode()
-            pv_settings = await self.api_client.async_get_pv_settings()
+            
+            # Only fetch PV settings every 5th update (once per 10 minutes)
+            # PV settings rarely change, so no need to poll frequently
+            if self._update_count % 5 == 1 or not hasattr(self.data, "get") or "pv_settings" not in self.data:
+                _LOGGER.debug("Fetching PV settings (update #%d)", self._update_count)
+                pv_settings = await self.api_client.async_get_pv_settings()
+            else:
+                # Reuse previous PV settings
+                pv_settings = self.data.get("pv_settings", {}) if self.data else {}
             
             # Note: GetEnergyConsumption requires startDate, endDate, interval parameters
             # This can be added as a service call when needed

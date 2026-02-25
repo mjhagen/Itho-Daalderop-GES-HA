@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import IthoApiClient
+from .api import IthoApiClient, IthoApiAuthenticationError, IthoApiConnectionError, IthoApiTimeoutError
 from .const import (
     APPLICATION_ID,
     CONF_ACCESS_TOKEN,
@@ -282,29 +282,18 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Device status keys: %s", list(result.keys()) if result else "None")
             return True, None
             
+        except IthoApiAuthenticationError as err:
+            _LOGGER.error("Authentication failed: %s", err)
+            return False, "serial_not_linked"
+            
+        except IthoApiTimeoutError as err:
+            _LOGGER.error("API timeout: %s", err)
+            return False, "api_timeout"
+            
+        except IthoApiConnectionError as err:
+            _LOGGER.error("Connection error: %s", err)
+            return False, "cannot_connect"
+            
         except Exception as err:
-            _LOGGER.error("Token validation failed: %s (type: %s)", err, type(err).__name__)
-            _LOGGER.error("Full error details: %s", repr(err))
-            
-            # Check error type for better user feedback
-            # First check exception type (more reliable than string matching)
-            import asyncio
-            from aiohttp import ClientError, ClientTimeout
-            
-            if isinstance(err, (asyncio.TimeoutError, TimeoutError, ClientTimeout)):
-                _LOGGER.error("API timeout - server did not respond in time")
-                return False, "api_timeout"
-            elif isinstance(err, ClientError):
-                error_str = str(err).lower()
-                if "401" in error_str or "unauthorized" in error_str:
-                    _LOGGER.error("Unauthorized - Serial number may not be linked to this account")
-                    return False, "serial_not_linked"
-                elif "404" in error_str or "not found" in error_str:
-                    _LOGGER.error("Serial number not found in system")
-                    return False, "serial_not_found"
-                else:
-                    _LOGGER.error("HTTP error - check connection")
-                    return False, "cannot_connect"
-            else:
-                _LOGGER.error("Unknown API error - token may be invalid or expired")
-                return False, "invalid_token"
+            _LOGGER.error("Unexpected validation error: %s", err)
+            return False, "invalid_token"

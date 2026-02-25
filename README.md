@@ -1,17 +1,41 @@
 # Itho Daalderop Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![GitHub Release](https://img.shields.io/github/release/marinuz/Itho-Daalderop-GES-HA.svg)](https://github.com/marinuz/Itho-Daalderop-GES-HA/releases)
+[![License](https://img.shields.io/github/license/marinuz/Itho-Daalderop-GES-HA.svg)](LICENSE)
 
-Home Assistant integratie voor Itho Daalderop warmtepompboilers met Cloud Connect functionaliteit.
+Professionele Home Assistant integratie voor Itho Daalderop warmtepompboilers met Cloud Connect functionaliteit.
 
-## Functies
+## ✨ Features
 
-✅ **Automatische authenticatie** via Azure B2C (geen username/password in HA nodig)  
-✅ **12+ Sensors** (water level, temperatuur, power, PV data, etc.)  
-✅ **Water Heater Entity** voor volledige boiler controle  
-✅ **4 Bedrijfsmodi** (SmartControl, Schedule, Continuous, Holiday)  
-✅ **PV integratie** monitoring (zonnepaneel overschot gebruik)  
-✅ **Token geldig 1 jaar** via automatische refresh  
+### 🎛️ **Volledige Controle**
+- ✅ **Water Heater Entity** voor complete boiler besturing
+- ✅ **Temperatuur regeling** (10-75°C) met real-time feedback
+- ✅ **4 Bedrijfsmodi**: SmartControl, Schedule, Continuous, Holiday
+- ✅ **Boost functie** met status indicator (schakelaar)
+
+### ☀️ **PV (Zonnepanelen) Optimalisatie**
+- ✅ **PV Functie aan/uit** schakelbaar
+- ✅ **Instelbare start/stop limieten** voor PV overschot (kW)
+- ✅ **PV doeltemperatuur** configureerbaar (°C)
+- ✅ **Live PV monitoring**: verbruik, productie en netto vermogen
+
+### 📊 **Uitgebreide Monitoring** (16+ sensors)
+- ✅ Boiler inhoud percentage
+- ✅ Water temperatuur live
+- ✅ Stroomverbruik actueel (W)
+- ✅ Energie verbruik totaal (kWh)
+- ✅ Energie besparing (kWh)
+- ✅ Legionella preventie timer
+- ✅ Software versie
+- ✅ Online/Offline status
+
+### 🔒 **Betrouwbaar & Veilig**
+- ✅ **Token-based authenticatie** (geen wachtwoord in HA)
+- ✅ **1-jaar geldigheid** met automatische refresh
+- ✅ **Retry logic** voor netwerkfouten
+- ✅ **Rate limiting** om API te beschermen
+- ✅ **HACS compatible**  
 
 ## Installatie via HACS
 
@@ -54,22 +78,135 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 
 ## Entiteiten
 
-### Water Heater
-- **Besturing**: Temperatuur instelbaar (10-75°C)
-- **Modi**: Eco (SmartControl), Auto (Schedule), Heat Pump (Continuous), Off (Holiday)
+### 🌡️ Water Heater
+**Hoofdentiteit voor boiler besturing**
+- **Temperatuur**: 10-75°C instelbaar
+- **Modi**: 
+  - `Eco` (SmartControl) - Slimme automatische modus
+  - `Auto` (Schedule) - Volgens weekschema
+  - `Heat Pump` (Continuous) - Altijd aan
+  - `Off` (Holiday) - Vakantie modus
+- **Attributen**: Alle sensor data beschikbaar
 
-### Sensors
-- **Boiler Content**: Vulgraad van de boiler (%)
-- **Device Mode**: Huidige bedrijfsmodus
-- **Device State**: Status van het apparaat
-- **Device Power**: Stroomverbruik (W)
-- **Water Temperature**: Huidige watertemperatuur (°C)
-- **Software Version**: Firmware versie
-- **Legionella Timer**: Tijd tot volgende legionella preventie (uur)
-- **PV Net Power**: Netto PV vermogen (kW)
-- **PV Enabled**: PV functie aan/uit
-- **PV Start/Stop Limit**: PV controle limieten (kW)
-- **Energy Consumption**: Energieverbruik (kWh)
+### 🔘 Switches (2)
+- **Boost Mode** 🚀
+  - Activeer snelle opwarming
+  - Status feedback (aan/uit)
+  
+- **PV Function** ☀️
+  - Schakel PV-overschot verwarming aan/uit
+  - Real-time status
+
+### Water Heater Services (Home Assistant standaard)
+```yaml
+# Stel temperatuur in
+service: water_heater.set_temperature
+target:
+  entity_id: water_heater.itho_boiler_vpr242600095
+data:
+  temperature: 60
+
+# Wijzig bedrijfsmodus
+service: water_heater.set_operation_mode
+target:
+  entity_id: water_heater.itho_boiler_vpr242600095
+data:
+  operation_mode: "eco"  # eco, auto, heat_pump, off
+```
+
+### Custom Services
+```yaml
+# Activeer boost mode
+service: itho_daalderop.boost_boiler
+data:
+  activate: true
+```
+
+## Automatisering Voorbeelden
+
+### PV Overschot Optimalisatie
+```yaml
+automation:
+  - alias: "Boiler: Warm water bij zonne-overschot"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.solar_power_surplus
+        above: 2.0  # 2 kW overschot
+    condition:
+      - condition: state
+        entity_id: switch.pv_function
+        state: "on"
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.pv_target_temperature
+        data:
+          value: 75  # Maximaal opwarmen
+```
+
+### Boost bij lage boiler inhoud
+```yaml
+automation:
+  - alias: "Boiler: Boost bij laag niveau"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.boiler_content
+        below: 20  # Onder 20%
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.boost_mode
+```
+
+### Nacht tarief optimalisatie
+```yaml
+automation:
+  - alias: "Boiler: Opwarmen tijdens nacht tarief"
+    trigger:
+      - platform: time
+        at: "23:00:00"
+    action:
+      - service: water_heater.set_temperature
+        target:
+          entity_id: water_heater.itho_boiler
+        data:
+          temperature: 75
+      - service: water_heater.set_operation_mode
+        target:
+          entity_id: water_heater.itho_boiler
+        data:
+          operation_mode: "heat_pump"
+```
+  
+- **PV Stop Limit** (0-10 kW, stap 0.1)
+  - Stop boiler onder deze limiet
+  
+- **PV Target Temperature** (40-90°C, stap 1)
+  - Doeltemperatuur voor PV-modus
+
+### 📊 Sensors (16)
+**Device Status**
+- `Boiler Content` - Vulgraad (%)
+- `Device State` - Online/Offline status
+- `Device Mode` - Huidige bedrijfsmodus
+- `Device Power` - Actueel vermogen (W)
+- `Water Temperature` - Huidige temp (°C)
+- `Software Version` - Firmware versie
+- `Legionella Timer` - Tijd tot preventie (uur)
+
+**Energy Monitoring**
+- `Energy Consumption` - Totaal verbruik (kWh)
+- `Energy Saving` - Totale besparing (kWh)
+
+**PV Monitoring**
+- `PV Net Power` - Netto vermogen (kW, - = teruglevering)
+- `PV Power Consumption` - Afname van net (kW)
+- `PV Power Production` - Levering aan net (kW)
+
+**PV Settings (read-only sensors)**
+- `PV Enabled` - Status (On/Off)
+- `PV Start Limit` - Huidige startwaarde (kW)
+- `PV Stop Limit` - Huidige stopwaarde (kW)
 
 ## Services
 

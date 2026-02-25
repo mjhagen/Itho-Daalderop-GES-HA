@@ -13,8 +13,9 @@ CONF_SERIAL_NUMBER = "serial_number"
 CONF_ACCESS_TOKEN = "access_token"
 CONF_REFRESH_TOKEN = "refresh_token"
 
-# Update interval
-UPDATE_INTERVAL = 60  # seconds
+# Update interval (API is slow: ~16s per call, 3 calls = ~50s total)
+# 120s gives API breathing room between updates
+UPDATE_INTERVAL = 120  # seconds
 
 # Device modes
 MODE_SMART_CONTROL = "SmartControl"

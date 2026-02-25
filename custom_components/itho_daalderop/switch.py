@@ -24,6 +24,7 @@ async def async_setup_entry(
 
     switches = [
         IthoBoostSwitch(coordinator, serial_number),
+        IthoPvEnabledSwitch(coordinator, serial_number),
     ]
 
     async_add_entities(switches)
@@ -63,3 +64,43 @@ class IthoBoostSwitch(CoordinatorEntity, SwitchEntity):
         # For now, we don't call the API when turning off
         # The status will update automatically when boost times out
         pass
+
+
+class IthoPvEnabledSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable PV function."""
+
+    def __init__(
+        self, coordinator: IthoDataUpdateCoordinator, serial_number: str
+    ) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator)
+        self._serial_number = serial_number
+        self._attr_unique_id = f"{serial_number}_pv_enabled"
+        self._attr_name = "PV Function"
+        self._attr_icon = "mdi:solar-power"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, serial_number)},
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if PV function is enabled."""
+        if self.coordinator.data and "pv_settings" in self.coordinator.data:
+            return self.coordinator.data["pv_settings"].get("pvEnabled", False)
+        return None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable PV function."""
+        success = await self.coordinator.api_client.async_set_pv_settings(
+            pv_enabled=True
+        )
+        if success:
+            await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable PV function."""
+        success = await self.coordinator.api_client.async_set_pv_settings(
+            pv_enabled=False
+        )
+        if success:
+            await self.coordinator.async_request_refresh()
