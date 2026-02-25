@@ -1,0 +1,11 @@
+{
+  "domain": "itho_daalderop",
+  "name": "Itho Daalderop",
+  "codeowners": ["@yourusername"],
+  "config_flow": true,
+  "documentation": "https://github.com/yourusername/itho-daalderop-ha",
+  "issue_tracker": "https://github.com/yourusername/itho-daalderop-ha/issues",
+  "requirements": [],
+  "version": "0.1.0",
+  "iot_class": "cloud_polling"
+}

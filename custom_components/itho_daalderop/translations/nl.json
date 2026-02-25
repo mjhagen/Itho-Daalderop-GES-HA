@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Itho Daalderop Boiler Instellen",
+        "description": "Voer het serienummer van je boiler in. Je email en wachtwoord voer je in de volgende stap in via de browser.",
+        "data": {
+          "serial_number": "Serienummer"
+        }
+      },
+      "auth_callback": {
+        "title": "Inloggen bij Itho Daalderop",
+        "description": "### Stappen om in te loggen:\n\n1. Klik op de onderstaande link om de login pagina te openen\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een **foutmelding** - dit is normaal!\n4. Open de browser console (druk op **F12**)\n5. Kopieer de URL die begint met: `climateconnect://login?token=...`\n6. Plak de URL hieronder\n\n### Login URL:\n[Klik hier om in te loggen]({login_url})\n\n",
+        "data": {
+          "callback_url": "Callback URL (climateconnect://login?token=...)"
+        }
+      }
+    },
+    "error": {
+      "invalid_serial": "Ongeldig serienummer",
+      "invalid_callback": "Ongeldige callback URL. Zorg dat de URL begint met: climateconnect://login?token=",
+      "invalid_token": "Token is ongeldig of verlopen",
+      "cannot_connect": "Kan geen verbinding maken met de server"
+    },
+    "abort": {
+      "no_azure_url": "Kon geen login URL ophalen",
+      "already_configured": "Deze boiler is al geconfigureerd"
+    }
+  }
+}
