@@ -94,7 +94,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await coordinator.async_refresh_settings()
     
     hass.services.async_register(
-            hass.services.async_remove(DOMAIN, SERVICE_SET_SCHEDULE)
         DOMAIN,
         SERVICE_BOOST_BOILER,
         handle_boost_boiler,
@@ -119,6 +118,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Remove services if this was the last entry
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_BOOST_BOILER)
+            hass.services.async_remove(DOMAIN, SERVICE_SET_SCHEDULE)
 
     return unload_ok
 
