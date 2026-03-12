@@ -143,7 +143,7 @@ class IthoDevicePowerSensor(IthoSensorBase):
         """Initialize the sensor."""
         super().__init__(coordinator, serial_number, "device_power")
         self._attr_name = "Device Power"
-        self._attr_native_unit_of_measurement = UnitOfPower.WATT
+        self._attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -318,6 +318,10 @@ class IthoEnergyConsumptionSensor(IthoSensorBase):
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "device_status" in self.coordinator.data:
+            value = self.coordinator.data["device_status"].get("energyConsumptionIntegrated")
+            if value is not None:
+                return value
+
             value = self.coordinator.data["device_status"].get("energyConsumption")
             if value is not None:
                 return value
@@ -338,6 +342,12 @@ class IthoEnergyConsumptionSensor(IthoSensorBase):
 
         energy = self.coordinator.data.get("energy", {})
         history_points = self._history_points()
+        device_status = self.coordinator.data.get("device_status", {})
+
+        if device_status.get("energyConsumption") is not None:
+            attributes["raw_energy_consumption"] = device_status.get("energyConsumption")
+        if device_status.get("energyConsumptionIntegrated") is not None:
+            attributes["integrated_energy_consumption"] = device_status.get("energyConsumptionIntegrated")
 
         if energy.get("interval") is not None:
             attributes["history_interval"] = energy.get("interval")

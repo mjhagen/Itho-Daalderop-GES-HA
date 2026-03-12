@@ -133,6 +133,9 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         self._update_count = 0  # Track updates for selective polling
         self._force_full_refresh = False  # Force fetch all data on next update
         self._energy_history_interval = 30  # Fetch slow history endpoint every ~60 min
+        self._calculated_energy_total: float | None = None
+        self._last_power_kw: float | None = None
+        self._last_energy_timestamp: datetime | None = None
 
         super().__init__(
             hass,
@@ -162,6 +165,34 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as err:
             _LOGGER.warning("Failed to refresh settings: %s", err)
 
+    def _update_calculated_energy(self, device_status: dict[str, Any]) -> None:
+        """Maintain a locally integrated total energy value in kWh."""
+        now = datetime.now()
+        raw_energy = device_status.get("energyConsumption")
+        current_power = device_status.get("devicePowerMeasured")
+
+        current_power_kw = float(current_power) if isinstance(current_power, int | float) else None
+        raw_energy_kwh = float(raw_energy) if isinstance(raw_energy, int | float) else None
+
+        if self._calculated_energy_total is None:
+            self._calculated_energy_total = raw_energy_kwh if raw_energy_kwh is not None else 0.0
+        elif (
+            self._last_energy_timestamp is not None
+            and self._last_power_kw is not None
+            and current_power_kw is not None
+        ):
+            elapsed_hours = (now - self._last_energy_timestamp).total_seconds() / 3600
+            if elapsed_hours > 0:
+                average_power_kw = max((self._last_power_kw + current_power_kw) / 2, 0)
+                self._calculated_energy_total += average_power_kw * elapsed_hours
+
+        if raw_energy_kwh is not None and raw_energy_kwh > self._calculated_energy_total:
+            self._calculated_energy_total = raw_energy_kwh
+
+        self._last_power_kw = current_power_kw
+        self._last_energy_timestamp = now
+        device_status["energyConsumptionIntegrated"] = round(self._calculated_energy_total, 3)
+
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
@@ -169,6 +200,7 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
             
             # Always fetch critical real-time data (device status)
             device_status = await self.api_client.async_get_device_status()
+            self._update_calculated_energy(device_status)
             
             # Fetch settings only every 5th update OR when forced
             # Settings (mode, PV) rarely change - only when user changes them
