@@ -1,6 +1,7 @@
 """API client for Itho Daalderop."""
 import asyncio
 import logging
+from datetime import datetime
 from typing import Any
 
 from aiohttp import ClientError, ClientResponseError, ClientTimeout
@@ -176,12 +177,26 @@ class IthoApiClient:
             params={"serialNumber": self.serial_number},
         )
 
-    async def async_get_energy_consumption(self) -> dict[str, Any]:
-        """Get energy consumption from API."""
+    async def async_get_energy_consumption(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        interval: str = "Day",
+        include_previous_period: bool = False,
+        refresh_cache: bool = False,
+    ) -> dict[str, Any]:
+        """Get energy consumption history from API."""
         return await self._make_request(
             "GET",
             "GetEnergyConsumption",
-            params={"serialNumber": self.serial_number},
+            params={
+                "serialNumber": self.serial_number,
+                "startDate": int(start_date.timestamp() * 1000),
+                "endDate": int(end_date.timestamp() * 1000),
+                "interval": interval,
+                "includePreviousPeriod": str(include_previous_period).lower(),
+                "refreshCache": str(refresh_cache).lower(),
+            },
         )
 
     async def async_set_device_mode(self, mode: str, schedule: str | None = None) -> bool:

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -131,6 +131,7 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         self.api_client = api_client
         self._update_count = 0  # Track updates for selective polling
         self._force_full_refresh = False  # Force fetch all data on next update
+        self._energy_history_interval = 30  # Fetch slow history endpoint every ~60 min
 
         super().__init__(
             hass,
@@ -184,21 +185,41 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 device_mode = await self.api_client.async_get_device_mode()
                 pv_settings = await self.api_client.async_get_pv_settings()
-                self._force_full_refresh = False  # Reset flag
             else:
                 # Reuse previous settings data
                 device_mode = self.data.get("device_mode", {}) if self.data else {}
                 pv_settings = self.data.get("pv_settings", {}) if self.data else {}
-            
-            # Note: GetEnergyConsumption requires startDate, endDate, interval parameters
-            # This can be added as a service call when needed
-            # energy = await self.api_client.async_get_energy_consumption()
+
+            should_fetch_energy = (
+                self._update_count % self._energy_history_interval == 1
+                or not self.data
+                or self._force_full_refresh
+            )
+
+            if should_fetch_energy:
+                _LOGGER.debug(
+                    "Fetching energy history data (update #%d, forced=%s)",
+                    self._update_count,
+                    self._force_full_refresh,
+                )
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=7)
+                energy = await self.api_client.async_get_energy_consumption(
+                    start_date=start_date,
+                    end_date=end_date,
+                    interval="Day",
+                    include_previous_period=True,
+                )
+            else:
+                energy = self.data.get("energy", {}) if self.data else {}
+
+            self._force_full_refresh = False  # Reset flag after optional fetches
 
             return {
                 "device_status": device_status,
                 "device_mode": device_mode,
                 "pv_settings": pv_settings,
-                "energy": {},  # Empty for now, can be populated via service call
+                "energy": energy,
             }
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err

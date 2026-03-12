@@ -1,6 +1,8 @@
 """Sensors for Itho Daalderop integration."""
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -294,12 +296,70 @@ class IthoEnergyConsumptionSensor(IthoSensorBase):
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
 
+    def _history_points(self) -> list[dict[str, Any]]:
+        """Return historical energy points from the coordinator."""
+        if not self.coordinator.data:
+            return []
+
+        energy = self.coordinator.data.get("energy", {})
+        data = energy.get("data", [])
+        return data if isinstance(data, list) else []
+
+    @staticmethod
+    def _extract_energy_value(item: dict[str, Any]) -> float | None:
+        """Extract an energy value from an API response item."""
+        for key in ("energyConsumption", "consumption", "value", "energy", "amount"):
+            value = item.get(key)
+            if isinstance(value, int | float):
+                return float(value)
+        return None
+
     @property
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
-        if self.coordinator.data and "energy" in self.coordinator.data:
-            return self.coordinator.data["energy"].get("energyConsumption")
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            value = self.coordinator.data["device_status"].get("energyConsumption")
+            if value is not None:
+                return value
+
+        history_points = self._history_points()
+        if history_points:
+            return self._extract_energy_value(history_points[-1])
+
         return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra attributes for the sensor."""
+        attributes: dict[str, Any] = {}
+
+        if not self.coordinator.data:
+            return attributes
+
+        energy = self.coordinator.data.get("energy", {})
+        history_points = self._history_points()
+
+        if energy.get("interval") is not None:
+            attributes["history_interval"] = energy.get("interval")
+        attributes["history_points"] = len(history_points)
+
+        if history_points:
+            latest = history_points[-1]
+            latest_value = self._extract_energy_value(latest)
+            if latest_value is not None:
+                attributes["latest_history_value"] = latest_value
+
+            previous = history_points[-2] if len(history_points) > 1 else None
+            previous_value = self._extract_energy_value(previous) if previous else None
+            if previous_value is not None and latest_value is not None:
+                attributes["latest_period_delta"] = round(latest_value - previous_value, 3)
+
+            for key in ("timestamp", "date", "startDate", "endDate"):
+                if latest.get(key) is not None:
+                    attributes["latest_history_point"] = latest.get(key)
+                    break
+
+        return attributes
 
 
 class IthoEnergySavingSensor(IthoSensorBase):
