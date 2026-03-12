@@ -70,7 +70,8 @@
 **Mogelijke Home Assistant Entities:**
 - ✅ SELECT entity voor mode (SmartControl/Schedule/Continuous/Holiday)
 - ✅ CLIMATE entity met temperatuur setpoint (75°C)
-- ✅ Schema configuratie per dag
+- ✅ 7 losse schedule sensors (maandag t/m zondag)
+- ✅ Schema configuratie per dag als attributen/gestructureerde data
 
 **Device Modes:**
 - `0` = SmartControl
@@ -285,6 +286,13 @@
 13. SmartGrid sessies
 14. Laatste fout code
 15. Doeltemperatuur / setpoint
+16. Schedule Monday
+17. Schedule Tuesday
+18. Schedule Wednesday
+19. Schedule Thursday
+20. Schedule Friday
+21. Schedule Saturday
+22. Schedule Sunday
 
 ### Climate Entity
 - Setpoint temperatuur (10-75°C)

@@ -103,10 +103,12 @@ Sneller voor lokaal testen zonder GitHub:
 ### Test 2: Sensors
 Na configuratie check deze entities:
 - `sensor.itho_boiler_SERIAL_boiler_content`
-- `sensor.itho_boiler_SERIAL_device_mode`
+- `select.itho_boiler_SERIAL_device_mode`
 - `sensor.itho_boiler_SERIAL_device_power`
-- `sensor.itho_boiler_SERIAL_water_temperature`
+- `sensor.itho_boiler_SERIAL_target_temperature`
 - `sensor.itho_boiler_SERIAL_pv_net_power`
+- `sensor.itho_boiler_SERIAL_schedule_monday`
+- `sensor.itho_boiler_SERIAL_schedule_tuesday`
 
 ### Test 3: Water Heater
 - `water_heater.itho_boiler_SERIAL`

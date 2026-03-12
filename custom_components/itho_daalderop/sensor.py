@@ -23,6 +23,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import IthoDataUpdateCoordinator
 from .const import CONF_SERIAL_NUMBER, DOMAIN
 
+SCHEDULE_DAY_NAMES = {
+    "0": "Monday",
+    "1": "Tuesday",
+    "2": "Wednesday",
+    "3": "Thursday",
+    "4": "Friday",
+    "5": "Saturday",
+    "6": "Sunday",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -54,6 +64,15 @@ async def async_setup_entry(
         # Energy Sensors
         IthoEnergyConsumptionSensor(coordinator, serial_number),
         IthoEnergySavingSensor(coordinator, serial_number),
+
+        # Schedule Sensors
+        IthoScheduleDaySensor(coordinator, serial_number, "0"),
+        IthoScheduleDaySensor(coordinator, serial_number, "1"),
+        IthoScheduleDaySensor(coordinator, serial_number, "2"),
+        IthoScheduleDaySensor(coordinator, serial_number, "3"),
+        IthoScheduleDaySensor(coordinator, serial_number, "4"),
+        IthoScheduleDaySensor(coordinator, serial_number, "5"),
+        IthoScheduleDaySensor(coordinator, serial_number, "6"),
     ]
 
     async_add_entities(sensors)
@@ -292,6 +311,75 @@ class IthoPvStopLimitSensor(IthoSensorBase):
         if self.coordinator.data and "pv_settings" in self.coordinator.data:
             return self.coordinator.data["pv_settings"].get("pvStopLimit")
         return None
+
+
+class IthoScheduleDaySensor(IthoSensorBase):
+    """Sensor for a single day's configured schedule."""
+
+    def __init__(
+        self,
+        coordinator: IthoDataUpdateCoordinator,
+        serial_number: str,
+        day_key: str,
+    ) -> None:
+        """Initialize the sensor."""
+        day_name = SCHEDULE_DAY_NAMES[day_key]
+        super().__init__(coordinator, serial_number, f"schedule_{day_name.lower()}")
+        self._day_key = day_key
+        self._day_name = day_name
+        self._attr_name = f"Schedule {day_name}"
+        self._attr_icon = "mdi:calendar-clock"
+
+    def _day_schedule(self) -> dict[str, Any]:
+        """Return the raw schedule dict for this day."""
+        if not self.coordinator.data:
+            return {}
+
+        device_mode = self.coordinator.data.get("device_mode", {})
+        schedule = device_mode.get("schedule", {})
+        day_schedule = schedule.get(self._day_key, {}) if isinstance(schedule, dict) else {}
+        return day_schedule if isinstance(day_schedule, dict) else {}
+
+    def _sorted_entries(self) -> list[tuple[int, float]]:
+        """Return schedule entries sorted by hour."""
+        entries: list[tuple[int, float]] = []
+        for hour, temperature in self._day_schedule().items():
+            try:
+                hour_int = int(hour)
+            except (TypeError, ValueError):
+                continue
+
+            if isinstance(temperature, int | float):
+                entries.append((hour_int, float(temperature)))
+
+        return sorted(entries, key=lambda item: item[0])
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the formatted schedule for the day."""
+        entries = self._sorted_entries()
+        if not entries:
+            return "No schedule"
+
+        return ", ".join(f"{hour:02d}:00 {temperature:g}°C" for hour, temperature in entries)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return structured schedule data for the day."""
+        entries = self._sorted_entries()
+        return {
+            "day": self._day_name,
+            "entries_count": len(entries),
+            "entries": [
+                {
+                    "hour": hour,
+                    "time": f"{hour:02d}:00",
+                    "temperature": temperature,
+                }
+                for hour, temperature in entries
+            ],
+            "raw_day_schedule": self._day_schedule(),
+        }
 
 
 class IthoEnergyConsumptionSensor(IthoSensorBase):

@@ -190,19 +190,21 @@ automation:
 - **PV Target Temperature** (40-90°C, stap 1)
   - Doeltemperatuur voor PV-modus
 
-### 📊 Sensors (16)
+### 📊 Sensors
 **Device Status**
 - `Boiler Content` - Vulgraad (%)
 - `Device State` - Online/Offline status
-- `Device Mode` - Huidige bedrijfsmodus
-- `Device Power` - Actueel vermogen (W)
-- `Water Temperature` - Huidige temp (°C)
+- `Device Power` - Actueel vermogen (kW)
+- `Target Temperature` - Ingestelde doeltemperatuur (°C)
 - `Software Version` - Firmware versie
 - `Legionella Timer` - Tijd tot preventie (uur)
 
 **Energy Monitoring**
 - `Energy Consumption` - Totaal verbruik (kWh)
 - `Energy Saving` - Totale besparing (kWh)
+
+**Schedule Monitoring**
+- `Schedule Monday` t/m `Schedule Sunday` - Dagelijkse schakelmomenten en temperaturen
 
 **PV Monitoring**
 - `PV Net Power` - Netto vermogen (kW, - = teruglevering)
