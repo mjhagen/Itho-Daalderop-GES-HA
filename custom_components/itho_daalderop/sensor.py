@@ -156,12 +156,16 @@ class IthoDevicePowerSensor(IthoSensorBase):
 
 
 class IthoDeviceTemperatureSensor(IthoSensorBase):
-    """Sensor for device temperature."""
+    """Sensor for target water temperature.
+
+    The cloud API does not appear to expose a reliable measured tank temperature,
+    but it does expose the configured target temperature via GetDeviceMode.
+    """
 
     def __init__(self, coordinator: IthoDataUpdateCoordinator, serial_number: str) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, serial_number, "device_temperature")
-        self._attr_name = "Water Temperature"
+        self._attr_name = "Target Temperature"
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -169,8 +173,13 @@ class IthoDeviceTemperatureSensor(IthoSensorBase):
     @property
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
+        if self.coordinator.data and "device_mode" in self.coordinator.data:
+            value = self.coordinator.data["device_mode"].get("temperature")
+            if value is not None:
+                return value
+
         if self.coordinator.data and "device_status" in self.coordinator.data:
-            return self.coordinator.data["device_status"].get("deviceTemperatureMeasured")
+            return self.coordinator.data["device_status"].get("deviceTemperatureSetpoint")
         return None
 
 

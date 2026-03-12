@@ -80,6 +80,11 @@ class IthoTemperatureSetpointNumber(IthoNumberBase):
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
+        if self.coordinator.data and "device_mode" in self.coordinator.data:
+            value = self.coordinator.data["device_mode"].get("temperature")
+            if value is not None:
+                return value
+
         if self.coordinator.data and "device_status" in self.coordinator.data:
             return self.coordinator.data["device_status"].get("deviceTemperatureSetpoint")
         return None

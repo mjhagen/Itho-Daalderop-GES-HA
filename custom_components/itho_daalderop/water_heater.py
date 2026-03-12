@@ -73,6 +73,11 @@ class IthoWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     @property
     def target_temperature(self) -> float | None:
         """Return the target temperature."""
+        if self.coordinator.data and "device_mode" in self.coordinator.data:
+            value = self.coordinator.data["device_mode"].get("temperature")
+            if value is not None:
+                return value
+
         if self.coordinator.data and "device_status" in self.coordinator.data:
             return self.coordinator.data["device_status"].get("deviceTemperatureSetpoint")
         return None
