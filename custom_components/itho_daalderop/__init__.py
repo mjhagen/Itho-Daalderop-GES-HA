@@ -87,9 +87,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if coordinators:
             coordinator = coordinators[0]
             # Set to Schedule mode with the provided schedule
+            current_temperature = None
+            if coordinator.data:
+                current_temperature = coordinator.data.get("device_mode", {}).get("temperature")
+
             success = await coordinator.api_client.async_set_device_mode(
                 mode="Schedule",
-                schedule=schedule
+                temperature=current_temperature,
+                schedule=schedule,
             )
             if success:
                 await coordinator.async_refresh_settings()

@@ -123,7 +123,16 @@ class IthoWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         
         itho_mode = mode_mapping.get(operation_mode)
         if itho_mode:
-            await self.coordinator.api_client.async_set_device_mode(itho_mode)
+            current_temperature = self.target_temperature
+            current_schedule = None
+            if self.coordinator.data:
+                current_schedule = self.coordinator.data.get("device_mode", {}).get("schedule")
+
+            await self.coordinator.api_client.async_set_device_mode(
+                itho_mode,
+                temperature=current_temperature,
+                schedule=current_schedule if itho_mode == MODE_SCHEDULE else None,
+            )
             # Only refresh settings data (mode + PV), not full device status
             await self.coordinator.async_refresh_settings()
 

@@ -140,13 +140,27 @@ class IthoHolidayModeSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable Holiday mode."""
-        success = await self.coordinator.api_client.async_set_device_mode(MODE_HOLIDAY)
+        current_temperature = None
+        if self.coordinator.data:
+            current_temperature = self.coordinator.data.get("device_mode", {}).get("temperature")
+
+        success = await self.coordinator.api_client.async_set_device_mode(
+            MODE_HOLIDAY,
+            temperature=current_temperature,
+        )
         if success:
             await self.coordinator.async_refresh_settings()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable Holiday mode (switch to SmartControl)."""
-        success = await self.coordinator.api_client.async_set_device_mode(MODE_SMART_CONTROL)
+        current_temperature = None
+        if self.coordinator.data:
+            current_temperature = self.coordinator.data.get("device_mode", {}).get("temperature")
+
+        success = await self.coordinator.api_client.async_set_device_mode(
+            MODE_SMART_CONTROL,
+            temperature=current_temperature,
+        )
         if success:
             await self.coordinator.async_refresh_settings()
 

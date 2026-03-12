@@ -73,9 +73,20 @@ class IthoDeviceModeSelect(CoordinatorEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         """Change the selected mode."""
         _LOGGER.info("Setting device mode to: %s", option)
-        
-        success = await self.coordinator.api_client.async_set_device_mode(option)
-        
+
+        current_temperature = None
+        current_schedule = None
+        if self.coordinator.data:
+            device_mode = self.coordinator.data.get("device_mode", {})
+            current_temperature = device_mode.get("temperature")
+            current_schedule = device_mode.get("schedule")
+
+        success = await self.coordinator.api_client.async_set_device_mode(
+            option,
+            temperature=current_temperature,
+            schedule=current_schedule if option == MODE_SCHEDULE else None,
+        )
+
         if success:
             # Only refresh settings, not full device status - reduces API calls
             await self.coordinator.async_refresh_settings()

@@ -8,7 +8,7 @@ from aiohttp import ClientError, ClientResponseError, ClientTimeout
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import API_BASE_URL
+from .const import API_BASE_URL, DEVICE_MODE_TO_API
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -199,15 +199,27 @@ class IthoApiClient:
             },
         )
 
-    async def async_set_device_mode(self, mode: str, schedule: str | None = None) -> bool:
+    async def async_set_device_mode(
+        self,
+        mode: str,
+        temperature: float | None = None,
+        schedule: dict[str, Any] | None = None,
+    ) -> bool:
         """Set device mode."""
-        payload = {
+        api_mode = DEVICE_MODE_TO_API.get(mode)
+        if api_mode is None:
+            _LOGGER.error("Unknown device mode: %s", mode)
+            return False
+
+        payload: dict[str, Any] = {
             "serialNumber": self.serial_number,
-            "deviceMode": mode,
+            "deviceMode": api_mode,
         }
-        
-        if schedule:
-            payload["deviceSchedule"] = schedule
+
+        if temperature is not None:
+            payload["temperature"] = temperature
+        if schedule is not None:
+            payload["schedule"] = schedule
 
         try:
             await self._make_request(
