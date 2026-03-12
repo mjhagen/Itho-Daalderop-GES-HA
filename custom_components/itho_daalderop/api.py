@@ -220,10 +220,11 @@ class IthoApiClient:
             _LOGGER.error("Failed to set device mode: %s", err)
             return False
 
-    async def async_boost_boiler(self) -> bool:
-        """Activate boiler boost."""
+    async def async_boost_boiler(self, activate: bool = True) -> bool:
+        """Activate or deactivate boiler boost."""
         payload = {
             "serialNumber": self.serial_number,
+            "activateBoost": activate,
         }
 
         try:
@@ -234,7 +235,7 @@ class IthoApiClient:
             )
             return True
         except IthoApiError as err:
-            _LOGGER.error("Failed to boost boiler: %s", err)
+            _LOGGER.error("Failed to set boost mode to %s: %s", activate, err)
             return False
 
     async def async_set_temperature(self, temperature: float) -> bool:

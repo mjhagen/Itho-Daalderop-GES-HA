@@ -73,8 +73,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinators = list(hass.data[DOMAIN].values())
         if coordinators:
             coordinator = coordinators[0]
-            await coordinator.api_client.async_boost_boiler()
-            await coordinator.async_request_refresh()
+            success = await coordinator.api_client.async_boost_boiler(activate=activate)
+            if success:
+                await coordinator.async_request_refresh()
     
     async def handle_set_schedule(call: ServiceCall) -> None:
         """Handle set schedule service call."""

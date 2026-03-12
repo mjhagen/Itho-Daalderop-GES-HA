@@ -56,15 +56,15 @@ class IthoBoostSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on boost mode."""
-        await self.coordinator.api_client.async_boost_boiler()
-        await self.coordinator.async_request_refresh()
+        success = await self.coordinator.api_client.async_boost_boiler(activate=True)
+        if success:
+            await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off boost mode."""
-        # Note: API might not have explicit "turn off" - may need to wait for timeout
-        # For now, we don't call the API when turning off
-        # The status will update automatically when boost times out
-        pass
+        success = await self.coordinator.api_client.async_boost_boiler(activate=False)
+        if success:
+            await self.coordinator.async_request_refresh()
 
 
 class IthoHolidayModeSwitch(CoordinatorEntity, SwitchEntity):
