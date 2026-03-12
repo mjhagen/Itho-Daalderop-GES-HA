@@ -3,7 +3,7 @@
 ## ✅ Test Status: GESLAAGD
 
 **Test datum**: 25 februari 2026  
-**Boiler**: VPR242600095  
+**Boiler**: `<SERIAL_NUMBER>`  
 **API Token**: Geldig tot 25 februari 2027
 
 ---
@@ -18,10 +18,10 @@
   "boilerContent": 0.81,           // 81% vol - SENSOR
   "boostActive": false,            // Boost mode - BINARY SENSOR
   "deviceMode": "Holiday",         // Huidige mode - SENSOR
-  "devicePowerMeasured": 0.0,      // Huidig vermogen (W) - SENSOR
+  "devicePowerMeasured": 0.0,      // Huidig vermogen (kW) - SENSOR
   "deviceSoftwareVersion": "14.89.132",  // Software versie - SENSOR
   "deviceState": "Offline",        // Online status - BINARY SENSOR
-  "energyConsumption": 0.04,       // Energie verbruik (kWh) - SENSOR
+  "energyConsumption": 0.04,       // Niet betrouwbaar als live totalizer; lijkt traag/statisch
   "energySaving": 0.0,             // Energie besparing (kWh) - SENSOR
   "pvPowerConsumption": 0.413,     // PV verbruik (kW) - SENSOR
   "pvPowerProduction": 0.0,        // PV productie (kW) - SENSOR
@@ -34,15 +34,16 @@
 - ✅ Boiler inhoud percentage
 - ✅ Boost status (aan/uit)
 - ✅ Apparaat mode (SmartControl/Schedule/Continuous/Holiday)
-- ✅ Huidig vermogen
+- ✅ Huidig vermogen (kW)
 - ✅ Software versie
 - ✅ Online/Offline status
-- ✅ Totaal energie verbruik
+- ⚠️ `energyConsumption` uit `GetDeviceStatus` lijkt geen betrouwbare live oplopende kWh teller
 - ✅ Energie besparing
 - ✅ PV verbruik van net
 - ✅ PV productie naar net
 - ✅ PV netto (positief = gebruik, negatief = teruglevering)
 - ✅ Legionella preventie timer
+- ❌ Geen gemeten watertemperatuur veld zichtbaar in `GetDeviceStatus`
 
 ---
 
@@ -61,7 +62,7 @@
     "5": { "0": 10 },  // Zaterdag
     "6": { "0": 10 }   // Zondag
   },
-  "serialNumber": "VPR242600095",
+  "serialNumber": "<SERIAL_NUMBER>",
   "temperature": 75.0  // Setpoint temperatuur
 }
 ```
@@ -128,29 +129,50 @@
 ---
 
 ### 5. **Energy Consumption** (`/GetEnergyConsumption`)
-✅ Werkt - Maar geen historische data beschikbaar (boiler is offline)
+✅ Werkt - Geeft historische intervaldata terug
 
 ```json
 {
-  "data": [],  // Zou historische data bevatten
-  "deviceId": "cf5f3a7e-4a63-4e57-a87f-48fd4245d129",
+  "data": [
+    {
+      "consumption": 4.24467737222222,
+      "consumptionNotDeliveredToNet": 0.0,
+      "costs": 1.061169343055555,
+      "previousConsumption": 7.32940556111111,
+      "previousConsumptionNotDeliveredToNet": 0.0,
+      "previousCosts": 1.8323513902777775,
+      "timeStamp": 1773273600000,
+      "previousTimeStamp": 1772668800000,
+      "pvAverageNetPower": 0.0,
+      "pvActualConPower": 0.0,
+      "pvActualProdPower": 0.0
+    }
+  ],
+  "deviceId": "dbabb1af-9dfb-4484-8bc5-e8a40ccfd5ec",
   "interval": "Day",
-  "serialNumber": "#VPR242600095"
+  "serialNumber": "#<SERIAL_NUMBER>"
 }
 ```
 
 **Parameters:**
-- `serialNumber`: VPR242600095
+- `serialNumber`: `<SERIAL_NUMBER>`
 - `startDate`: Epoch timestamp (ms)
 - `endDate`: Epoch timestamp (ms)
 - `interval`: "Day", "Week", "Month", "Year"
 - `includePreviousPeriod`: true/false
 - `refreshCache`: true/false
 
+**Waarnemingen:**
+- `GetEnergyConsumption` geeft **periodetotalen** terug per `interval`, geen live totaalstand
+- `consumption` is kWh voor het interval
+- `costs` lijkt direct uit `consumption` afgeleid
+- `device_status.energyConsumption` kan tegelijk op een lage/statische waarde blijven staan (dus niet gebruiken als enige bron voor live energy tracking)
+
 **Mogelijke Home Assistant Entities:**
-- ✅ Energie verbruik per dag/week/maand (zodra boiler online is)
+- ✅ Energie verbruik per dag/week/maand
 - ✅ Vergelijking met vorige periode
 - ✅ Kosten berekening
+- ✅ Extra attributen voor PV-gerelateerde energievelden uit de history API
 
 ---
 
@@ -193,7 +215,7 @@
 ### 1. **Boost Boiler** (`/BoostBoiler`)
 ```json
 {
-  "serialNumber": "VPR242600095",
+  "serialNumber": "<SERIAL_NUMBER>",
   "activateBoost": true  // of false
 }
 ```
@@ -204,7 +226,7 @@
 ### 2. **Update Device Mode** (`/UpdateDeviceMode`)
 ```json
 {
-  "serialNumber": "VPR242600095",
+  "serialNumber": "<SERIAL_NUMBER>",
   "deviceMode": 0,  // 0-4
   "temperature": 75.0,
   "schedule": {
@@ -222,7 +244,7 @@
 ### 3. **Update PV Settings** (`/UpdateDevicePVSettings`)
 ```json
 {
-  "serialNumber": "VPR242600095",
+  "serialNumber": "<SERIAL_NUMBER>",
   "pvSetpoint": 85.0,
   "pvStartLimit": 1.6,
   "pvStopLimit": 0.5,
@@ -235,12 +257,13 @@
 
 ## 📝 Opmerkingen
 
-1. **Boiler is Offline**: De boiler staat momenteel op "Offline", maar de API geeft toch data terug (laatst bekende status)
-2. **Holiday Mode**: De boiler staat in vakantie modus met minimale temperatuur (10°C in schema)
-3. **PV Integratie**: Zonnepanelen configuratie is aanwezig en actief
-4. **Legionella Preventie**: Timer staat op 168 uur (1 week)
-5. **Energy Data**: Geen historische data beschikbaar (waarschijnlijk omdat boiler offline is)
-6. **Token Geldigheid**: 1 jaar geldig (tot feb 2027), bevat refresh token voor verlenging
+1. **Device Power is kW, niet W**: live polling liet waarden rond 1.88 zien tijdens verwarmen; dat kan alleen logisch kW zijn
+2. **Geen gemeten watertemperatuur gevonden**: `GetDeviceStatus` bevat geen `deviceTemperatureMeasured`; alleen `GetDeviceMode.temperature` (setpoint) is betrouwbaar beschikbaar
+3. **`energyConsumption` in `GetDeviceStatus` is niet live genoeg**: deze bleef op 0.27 kWh staan terwijl het apparaat actief ~1.88 kW trok
+4. **Gebruik `GetEnergyConsumption` voor historie**: deze endpoint geeft echte dag/week/maand totalen, kosten en vergelijking met vorige periode
+5. **PV Integratie is apparaat-afhankelijk**: bij de live boiler waren alle PV velden 0.0
+6. **Fault endpoints gedragen zich netjes**: `GetFault` geeft alleen `message`; `GetFaultHistory` geeft `count` + `results`
+7. **Token Geldigheid**: 1 jaar geldig, bevat refresh token voor verlenging
 
 ---
 
@@ -250,9 +273,9 @@
 1. Boiler inhoud (%)
 2. Boost status (aan/uit)
 3. Device mode (dropdown)
-4. Huidig vermogen (W)
+4. Huidig vermogen (kW)
 5. Online status (aan/uit)
-6. Energie verbruik totaal (kWh)
+6. Energie verbruik totaal (kWh, bij voorkeur lokaal geïntegreerd of via utility meters)
 7. Energie besparing (kWh)
 8. PV verbruik (kW)
 9. PV productie (kW)
@@ -261,7 +284,7 @@
 12. Software versie
 13. SmartGrid sessies
 14. Laatste fout code
-15. Water temperatuur
+15. Doeltemperatuur / setpoint
 
 ### Climate Entity
 - Setpoint temperatuur (10-75°C)
@@ -276,13 +299,35 @@
 
 ---
 
+## 🔬 Live polling update (12 maart 2026)
+
+Met `./test_config.json` zijn de endpoints opnieuw live gepolled op een online boiler (`<SERIAL_NUMBER>`).
+
+Belangrijkste bevindingen:
+- `GetDeviceStatus.devicePowerMeasured = 1.88` tijdens actief verwarmen → eenheid is praktisch zeker **kW**
+- `GetDeviceStatus.energyConsumption = 0.27` bleef gelijk terwijl het apparaat actief vermogen trok → geen betrouwbare live totalizer
+- `GetEnergyConsumption` gaf wel geldige dag/week/maand data terug, inclusief:
+  - `consumption`
+  - `costs`
+  - `previousConsumption`
+  - `previousCosts`
+  - `timeStamp`
+  - `previousTimeStamp`
+- `GetDeviceStatus` bevat **geen** gemeten watertemperatuur veld
+- `GetDeviceMode.temperature = 70.0` is bruikbaar als **target temperature / setpoint**
+- `GetFault` en `GetFaultHistory` geven nette lege responses zonder fouten
+- `GetEanCode` gaf 404 met payload `"A valid address could not be found"`
+
 ## ✅ Conclusie
 
-**Alle kritieke endpoints werken perfect!** De API is stabiel en consistent. We kunnen nu een volledige Home Assistant HACS integratie bouwen met:
-- Real-time monitoring van alle boiler parameters
-- Besturing van mode en temperatuur
-- PV integratie voor slimme sturing met zonnepanelen
-- Energie monitoring en rapportage
-- Foutmeldingen en diagnostiek
+De API is bruikbaar, maar niet elk veld betekent wat het op het eerste gezicht lijkt:
+- vermogensvelden zijn bruikbaar voor live monitoring
+- de history endpoint is bruikbaar voor energie-rapportage
+- temperatuur lijkt beperkt tot setpoint
+- sommige statusvelden (`energyConsumption`) zijn niet geschikt als live bron zonder extra logica
 
-De basis is gelegd - klaar voor de HACS integratie! 🚀
+De integratie moet dus deels leunen op:
+- `GetDeviceStatus` voor live status
+- `GetDeviceMode` voor setpoint
+- `GetEnergyConsumption` voor historie/vergelijking
+- lokale afleiding/integratie waar de cloud-API geen goede live teller geeft

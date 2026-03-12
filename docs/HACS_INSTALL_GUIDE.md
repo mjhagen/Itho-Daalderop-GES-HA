@@ -95,7 +95,7 @@ Sneller voor lokaal testen zonder GitHub:
 ## Testen
 
 ### Test 1: Config Flow
-- Voer serienummer in: `VPR242600095`
+- Voer serienummer in: `<SERIAL_NUMBER>`
 - Login via browser
 - Kopieer callback URL
 - Controleer of token wordt geaccepteerd

@@ -20,7 +20,7 @@ Je hebt helemaal gelijk - dit is **veel handiger**! Home Assistant heeft hier in
 │                                         │
 │  Serienummer:                           │
 │  ┌───────────────────────────────────┐ │
-│  │ VPR242600095                      │ │
+│  │ <SERIAL_NUMBER>                  │ │
 │  └───────────────────────────────────┘ │
 │                                         │
 │              [Volgende]                 │
@@ -108,7 +108,7 @@ Kopieer de VOLLEDIGE URL!
 │  Je Itho Daalderop boiler is succesvol │
 │  toegevoegd aan Home Assistant!         │
 │                                         │
-│  Boiler: VPR242600095                  │
+│  Boiler: <SERIAL_NUMBER>              │
 │  Gebruiker: jouw@email.com             │
 │  Token geldig tot: 2027-02-25          │
 │                                         │

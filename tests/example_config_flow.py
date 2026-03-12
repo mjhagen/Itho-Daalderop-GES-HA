@@ -41,7 +41,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # Valideer serial number format (bijv. VPR242600095)
+            # Valideer serial number format (bijv. <SERIAL_NUMBER>)
             serial = user_input.get("serial_number", "").strip()
             
             if len(serial) < 5:

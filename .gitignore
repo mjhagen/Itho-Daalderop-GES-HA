@@ -20,6 +20,7 @@ tests/__pycache__/
 test_*.py
 analyze_*.py
 diagnose_*.py
+test_config.json
 
 # Environment & logs
 .env

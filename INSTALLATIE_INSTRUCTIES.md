@@ -67,7 +67,7 @@ Dit betekent dat de strings.json niet is herladen:
 ## Correcte Gebruik
 
 ### Stap 1: Serienummer
-Voer je boiler serienummer in (bijvoorbeeld: `VPR242600095`)
+Voer je boiler serienummer in (bijvoorbeeld: `<SERIAL_NUMBER>`)
 
 ### Stap 2: Inloggen
 1. Klik op de **login link**

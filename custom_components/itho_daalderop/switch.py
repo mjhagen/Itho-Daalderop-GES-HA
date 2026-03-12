@@ -1,6 +1,7 @@
 """Switch platform for Itho Daalderop integration."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -34,6 +35,8 @@ async def async_setup_entry(
 class IthoBoostSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to control boiler boost mode."""
 
+    _OPTIMISTIC_STATE_TIMEOUT = timedelta(minutes=5)
+
     def __init__(
         self, coordinator: IthoDataUpdateCoordinator, serial_number: str
     ) -> None:
@@ -46,24 +49,68 @@ class IthoBoostSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, serial_number)},
         }
+        self._optimistic_state: bool | None = None
+        self._optimistic_until: datetime | None = None
+
+    def _actual_state(self) -> bool | None:
+        """Return the state reported by the API."""
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            value = self.coordinator.data["device_status"].get("boostActive")
+            if value is not None:
+                return bool(value)
+        return None
+
+    def _set_optimistic_state(self, state: bool) -> None:
+        """Temporarily keep the UI in the requested state."""
+        self._optimistic_state = state
+        self._optimistic_until = datetime.now() + self._OPTIMISTIC_STATE_TIMEOUT
 
     @property
     def is_on(self) -> bool | None:
         """Return true if boost is active."""
-        if self.coordinator.data and "device_status" in self.coordinator.data:
-            return self.coordinator.data["device_status"].get("boostActive", False)
-        return None
+        actual_state = self._actual_state()
+
+        if self._optimistic_state is not None:
+            if actual_state == self._optimistic_state:
+                self._optimistic_state = None
+                self._optimistic_until = None
+                return actual_state
+
+            if self._optimistic_until and datetime.now() < self._optimistic_until:
+                return self._optimistic_state
+
+            self._optimistic_state = None
+            self._optimistic_until = None
+
+        return actual_state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra attributes for debugging state sync."""
+        actual_state = self._actual_state()
+        attributes: dict[str, Any] = {
+            "api_boost_active": actual_state,
+        }
+        if self._optimistic_state is not None:
+            attributes["optimistic_boost_state"] = self._optimistic_state
+        if self._optimistic_until is not None:
+            attributes["optimistic_until"] = self._optimistic_until.isoformat()
+        return attributes
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on boost mode."""
         success = await self.coordinator.api_client.async_boost_boiler(activate=True)
         if success:
+            self._set_optimistic_state(True)
+            self.async_write_ha_state()
             await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off boost mode."""
         success = await self.coordinator.api_client.async_boost_boiler(activate=False)
         if success:
+            self._set_optimistic_state(False)
+            self.async_write_ha_state()
             await self.coordinator.async_request_refresh()
 
 

@@ -73,7 +73,7 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 1. Ga naar **Instellingen** → **Apparaten & Services**
 2. Klik op **+ Integratie toevoegen**
 3. Zoek naar **Itho Daalderop**
-4. Voer het **serienummer** van je boiler in (bijv. `VPR242600095`)
+4. Voer het **serienummer** van je boiler in (bijv. `<SERIAL_NUMBER>`)
 5. Er opent een browser naar de Itho login pagina
 6. Log in met je **Itho Daalderop account**
 7. Na inloggen krijg je een foutmelding - dit is normaal!
