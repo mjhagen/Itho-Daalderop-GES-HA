@@ -53,14 +53,6 @@ async def async_setup_entry(
         IthoSoftwareVersionSensor(coordinator, serial_number),
         IthoLegionellaTimerSensor(coordinator, serial_number),
         
-        # PV Sensors
-        IthoPvPowerNetSensor(coordinator, serial_number),
-        IthoPvPowerConsumptionSensor(coordinator, serial_number),
-        IthoPvPowerProductionSensor(coordinator, serial_number),
-        IthoPvEnabledSensor(coordinator, serial_number),
-        IthoPvStartLimitSensor(coordinator, serial_number),
-        IthoPvStopLimitSensor(coordinator, serial_number),
-        
         # Energy Sensors
         IthoEnergyConsumptionSensor(coordinator, serial_number),
         IthoEnergySavingSensor(coordinator, serial_number),
@@ -74,6 +66,19 @@ async def async_setup_entry(
         IthoScheduleDaySensor(coordinator, serial_number, "5"),
         IthoScheduleDaySensor(coordinator, serial_number, "6"),
     ]
+
+    if coordinator.pv_supported:
+        sensors.extend(
+            [
+                # PV Sensors
+                IthoPvPowerNetSensor(coordinator, serial_number),
+                IthoPvPowerConsumptionSensor(coordinator, serial_number),
+                IthoPvPowerProductionSensor(coordinator, serial_number),
+                IthoPvEnabledSensor(coordinator, serial_number),
+                IthoPvStartLimitSensor(coordinator, serial_number),
+                IthoPvStopLimitSensor(coordinator, serial_number),
+            ]
+        )
 
     async_add_entities(sensors)
 
@@ -340,19 +345,41 @@ class IthoScheduleDaySensor(IthoSensorBase):
         day_schedule = schedule.get(self._day_key, {}) if isinstance(schedule, dict) else {}
         return day_schedule if isinstance(day_schedule, dict) else {}
 
-    def _sorted_entries(self) -> list[tuple[int, float]]:
-        """Return schedule entries sorted by hour."""
-        entries: list[tuple[int, float]] = []
-        for hour, temperature in self._day_schedule().items():
-            try:
-                hour_int = int(hour)
-            except (TypeError, ValueError):
+    def _schedule_key_to_minutes(self, time_key: Any) -> int | None:
+        """Convert the API's HHMM schedule key to minutes after midnight."""
+        try:
+            value = int(time_key)
+        except (TypeError, ValueError):
+            return None
+
+        if value < 0:
+            return None
+
+        hours = value // 100
+        minutes = value % 100
+        if hours <= 23 and minutes <= 59:
+            return hours * 60 + minutes
+
+        return None
+
+    def _sorted_entries(self) -> list[tuple[int, int, float]]:
+        """Return schedule entries sorted by time."""
+        entries: list[tuple[int, int, float]] = []
+        for time_key, temperature in self._day_schedule().items():
+            minutes_after_midnight = self._schedule_key_to_minutes(time_key)
+            if minutes_after_midnight is None:
                 continue
 
             if isinstance(temperature, int | float):
-                entries.append((hour_int, float(temperature)))
+                entries.append(
+                    (
+                        minutes_after_midnight // 60,
+                        minutes_after_midnight % 60,
+                        float(temperature),
+                    )
+                )
 
-        return sorted(entries, key=lambda item: item[0])
+        return sorted(entries, key=lambda item: (item[0], item[1]))
 
     @property
     def native_value(self) -> str | None:
@@ -361,7 +388,10 @@ class IthoScheduleDaySensor(IthoSensorBase):
         if not entries:
             return "No schedule"
 
-        return ", ".join(f"{hour:02d}:00 {temperature:g}°C" for hour, temperature in entries)
+        return ", ".join(
+            f"{hour:02d}:{minute:02d} {temperature:g}°C"
+            for hour, minute, temperature in entries
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -373,10 +403,11 @@ class IthoScheduleDaySensor(IthoSensorBase):
             "entries": [
                 {
                     "hour": hour,
-                    "time": f"{hour:02d}:00",
+                    "minute": minute,
+                    "time": f"{hour:02d}:{minute:02d}",
                     "temperature": temperature,
                 }
-                for hour, temperature in entries
+                for hour, minute, temperature in entries
             ],
             "raw_day_schedule": self._day_schedule(),
         }

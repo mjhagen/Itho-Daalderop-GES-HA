@@ -18,6 +18,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_SERIAL_NUMBER,
     DOMAIN,
+    PV_UNSUPPORTED_SERIAL_NUMBERS,
     UPDATE_INTERVAL,
 )
 
@@ -154,11 +155,16 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         self._force_full_refresh = True
         await self.async_request_refresh()
 
+    @property
+    def pv_supported(self) -> bool:
+        """Return whether this boiler model supports PV/smart-grid settings."""
+        return self.api_client.serial_number not in PV_UNSUPPORTED_SERIAL_NUMBERS
+
     async def async_refresh_settings(self) -> None:
-        """Refresh only settings data (mode + PV) without waiting for next poll."""
+        """Refresh settings data without waiting for next poll."""
         try:
             device_mode = await self.api_client.async_get_device_mode()
-            pv_settings = await self.api_client.async_get_pv_settings()
+            pv_settings = await self.api_client.async_get_pv_settings() if self.pv_supported else {}
             
             # Update data without triggering full refresh
             if self.data:
@@ -222,7 +228,7 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
                     self._force_full_refresh
                 )
                 device_mode = await self.api_client.async_get_device_mode()
-                pv_settings = await self.api_client.async_get_pv_settings()
+                pv_settings = await self.api_client.async_get_pv_settings() if self.pv_supported else {}
             else:
                 # Reuse previous settings data
                 device_mode = self.data.get("device_mode", {}) if self.data else {}

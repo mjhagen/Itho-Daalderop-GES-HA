@@ -150,7 +150,7 @@ class IthoWaterHeater(CoordinatorEntity, WaterHeaterEntity):
                 attrs["software_version"] = status.get("deviceSoftwareVersion")
                 attrs["legionella_timer"] = status.get("legionellaPreventionTimer")
                 
-            if "pv_settings" in self.coordinator.data:
+            if self.coordinator.pv_supported and "pv_settings" in self.coordinator.data:
                 pv = self.coordinator.data["pv_settings"]
                 attrs["pv_enabled"] = pv.get("pvEnabled")
                 attrs["pv_start_limit"] = pv.get("pvStartLimit")

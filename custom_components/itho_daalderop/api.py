@@ -20,6 +20,68 @@ MAX_RETRIES = 2
 RETRY_DELAY = 2  # seconds
 
 
+def _schedule_time_key_to_seconds(time_key: Any) -> int | None:
+    """Convert a schedule time key to seconds after midnight for the API.
+
+    The Climate Connect API stores/returns schedule keys as HHMM integers
+    (for example 1100 for 11:00), but UpdateDeviceMode expects seconds after
+    midnight. If hour keys such as 11 are sent directly, the mobile app shows
+    the schedule item at 00:00.
+    """
+    if isinstance(time_key, str) and ":" in time_key:
+        try:
+            hours, minutes = time_key.split(":", 1)
+            return int(hours) * 3600 + int(minutes) * 60
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        value = int(time_key)
+    except (TypeError, ValueError):
+        return None
+
+    if value < 0:
+        return None
+
+    if value <= 23:
+        # Friendly service format: 11 means 11:00.
+        return value * 3600
+
+    if value <= 2359:
+        # API read format: 1100 means 11:00.
+        hours = value // 100
+        minutes = value % 100
+        if hours <= 23 and minutes <= 59:
+            return hours * 3600 + minutes * 60
+        return None
+
+    # Already in API write format.
+    if value <= 24 * 3600:
+        return value
+
+    return None
+
+
+def _schedule_to_api(schedule: dict[str, Any]) -> dict[str, dict[str, float]]:
+    """Normalize a day/hour schedule to the API's write format."""
+    normalized: dict[str, dict[str, float]] = {}
+
+    for day, day_schedule in schedule.items():
+        if not isinstance(day_schedule, dict):
+            continue
+
+        normalized_day: dict[str, float] = {}
+        for time_key, temperature in day_schedule.items():
+            seconds = _schedule_time_key_to_seconds(time_key)
+            if seconds is None or not isinstance(temperature, int | float):
+                continue
+            normalized_day[str(seconds)] = float(temperature)
+
+        normalized[str(day)] = normalized_day
+
+    return normalized
+
+
 class IthoApiError(Exception):
     """Base exception for Itho API errors."""
 
@@ -206,20 +268,22 @@ class IthoApiClient:
         schedule: dict[str, Any] | None = None,
     ) -> bool:
         """Set device mode."""
-        api_mode = DEVICE_MODE_TO_API.get(mode)
-        if api_mode is None:
+        if mode not in DEVICE_MODE_TO_API:
             _LOGGER.error("Unknown device mode: %s", mode)
             return False
 
         payload: dict[str, Any] = {
             "serialNumber": self.serial_number,
-            "deviceMode": api_mode,
+            # The cloud API accepts the textual mode values it also returns from
+            # GetDeviceMode. Numeric mode IDs can return 204 while not changing
+            # the mode/schedule on at least some boiler models.
+            "deviceMode": mode,
         }
 
         if temperature is not None:
             payload["temperature"] = temperature
         if schedule is not None:
-            payload["schedule"] = schedule
+            payload["schedule"] = _schedule_to_api(schedule)
 
         try:
             await self._make_request(

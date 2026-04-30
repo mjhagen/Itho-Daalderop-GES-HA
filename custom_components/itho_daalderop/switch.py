@@ -26,8 +26,10 @@ async def async_setup_entry(
     switches = [
         IthoBoostSwitch(coordinator, serial_number),
         IthoHolidayModeSwitch(coordinator, serial_number),
-        IthoPvEnabledSwitch(coordinator, serial_number),
     ]
+
+    if coordinator.pv_supported:
+        switches.append(IthoPvEnabledSwitch(coordinator, serial_number))
 
     async_add_entities(switches)
 

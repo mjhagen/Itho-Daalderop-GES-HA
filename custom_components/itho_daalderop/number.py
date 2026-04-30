@@ -28,10 +28,16 @@ async def async_setup_entry(
 
     numbers: list[NumberEntity] = [
         IthoTemperatureSetpointNumber(coordinator, serial_number),
-        IthoPvStartLimitNumber(coordinator, serial_number),
-        IthoPvStopLimitNumber(coordinator, serial_number),
-        IthoPvSetpointNumber(coordinator, serial_number),
     ]
+
+    if coordinator.pv_supported:
+        numbers.extend(
+            [
+                IthoPvStartLimitNumber(coordinator, serial_number),
+                IthoPvStopLimitNumber(coordinator, serial_number),
+                IthoPvSetpointNumber(coordinator, serial_number),
+            ]
+        )
 
     async_add_entities(numbers)
 

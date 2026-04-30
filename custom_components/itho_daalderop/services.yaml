@@ -23,9 +23,11 @@ set_schedule:
     schedule:
       name: Schema
       description: >
-        Schema object met dag:uur:temperatuur mappings.
+        Schema object met dag:tijd:temperatuur mappings.
         Bijvoorbeeld: {"0": {"0": 10, "8": 60, "17": 65}, "1": {"0": 10}}
-        waarbij 0-6 = ma-zo, uur = 0-23, temperatuur in °C
+        waarbij 0-6 = ma-zo, tijd als uur 0-23 of HHMM, temperatuur in °C.
+        De integratie zet tijden intern om naar seconden; de Climate Connect API/app
+        toont schakelmomenten anders ten onrechte als 00:00.
       required: true
       example: '{"0": {"0": 10, "8": 60, "17": 65}, "1": {"0": 10, "8": 60, "17": 65}}'
       selector:

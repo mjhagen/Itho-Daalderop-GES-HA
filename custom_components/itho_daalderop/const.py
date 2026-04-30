@@ -13,9 +13,18 @@ CONF_SERIAL_NUMBER = "serial_number"
 CONF_ACCESS_TOKEN = "access_token"
 CONF_REFRESH_TOKEN = "refresh_token"
 
-# Update interval (API is slow: ~16s per call, 3 calls = ~50s total)
-# 120s gives API breathing room between updates
-UPDATE_INTERVAL = 120  # seconds
+# Model capabilities
+# Some Itho boiler models do not support the PV/smart-grid feature, but the
+# cloud API still exposes read endpoints that return zeroed values. Keep a
+# small override list so those non-functional entities are not created.
+PV_UNSUPPORTED_SERIAL_NUMBERS = {
+    "GRB223480251",
+}
+
+# Update interval.
+# The device status endpoint is the most important live signal and is now polled
+# selectively, so a shorter interval gives much better UX for boost/state changes.
+UPDATE_INTERVAL = 30  # seconds
 
 # Device modes
 MODE_SMART_CONTROL = "SmartControl"
