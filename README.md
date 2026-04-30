@@ -10,38 +10,40 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/marinuz/Itho-Daalderop-GES-HA.svg" alt="License"></a>
 </p>
 
-Professionele Home Assistant integratie voor Itho Daalderop boiler met Cloud Connect functionaliteit.
+Home Assistant integratie voor Itho Daalderop boilers via de Climate Connect cloud API.
 
 ## ✨ Features
 
-### 🎛️ **Volledige Controle**
-- ✅ **Water Heater Entity** voor complete boiler besturing
-- ✅ **Temperatuur regeling** (10-75°C) met real-time feedback
-- ✅ **4 Bedrijfsmodi**: SmartControl, Schedule, Continuous, Holiday
-- ✅ **Boost functie** met status indicator (schakelaar)
+### 🎛️ Boiler controle
+- ✅ **Water Heater entity** voor de hoofd-besturing van de boiler
+- ✅ **Temperatuurregeling** (10-75°C) met feedback uit de API
+- ✅ **Bedrijfsmodus select** voor SmartControl, Schedule, Continuous en Holiday
+- ✅ **Vakantie modus** als aparte schakelaar
+- ✅ **Boost functie** als schakelaar en service, inclusief status feedback
+- ✅ **Weekprogramma service** voor het aanpassen van schedules
 
-### ☀️ **PV (Zonnepanelen) Optimalisatie**
-- ✅ **PV Functie aan/uit** schakelbaar
+### ☀️ PV / Smart-grid ondersteuning
+- ✅ **PV functie aan/uit** schakelbaar, waar ondersteund door het boilermodel
 - ✅ **Instelbare start/stop limieten** voor PV overschot (kW)
 - ✅ **PV doeltemperatuur** configureerbaar (°C)
 - ✅ **Live PV monitoring**: verbruik, productie en netto vermogen
+- ℹ️ PV-entiteiten worden niet aangemaakt voor bekende modellen waarvan de API alleen niet-functionele nulwaarden teruggeeft.
 
-### 📊 **Uitgebreide Monitoring** (16+ sensors)
+### 📊 Monitoring
 - ✅ Boiler inhoud percentage
-- ✅ Water temperatuur live
-- ✅ Stroomverbruik actueel (W)
-- ✅ Energie verbruik totaal (kWh)
-- ✅ Energie besparing (kWh)
+- ✅ Actueel opgenomen vermogen (kW)
+- ✅ Doeltemperatuur uit de device mode API
+- ✅ Energieverbruik en energiebesparing (kWh)
+- ✅ Per-dag schedule sensors met schakelmomenten en temperaturen
 - ✅ Legionella preventie timer
 - ✅ Software versie
-- ✅ Online/Offline status
+- ✅ Online/offline status
 
-### 🔒 **Betrouwbaar & Veilig**
-- ✅ **Token-based authenticatie** (geen wachtwoord in HA)
-- ✅ **1-jaar geldigheid** met automatische refresh
-- ✅ **Retry logic** voor netwerkfouten
-- ✅ **Rate limiting** om API te beschermen
-- ✅ **HACS compatible**  
+### 🔒 Betrouwbaarheid
+- ✅ **Token-based authenticatie** (geen wachtwoord in Home Assistant)
+- ✅ **Retry logic** voor tijdelijke netwerk/API fouten
+- ✅ **Selectieve polling**: snelle statusupdates, minder vaak trage settings/history endpoints
+- ✅ **HACS compatible** met integratie-iconen/logo's
 
 ## Installatie via HACS
 
@@ -49,7 +51,7 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 
 ### Quick Start
 
-#### Optie 1: Custom Repository (Aanbevolen voor testing)
+#### Optie 1: Custom Repository
 
 1. Open **HACS** in Home Assistant
 2. Klik op **Integrations**
@@ -80,28 +82,85 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 8. Open **Browser Console** (F12)
 9. Kopieer de URL die begint met `climateconnect://login?token=...`
 10. Plak deze in Home Assistant
-11. Klaar! Je boiler is nu beschikbaar in HA
+11. Klaar! Je boiler is nu beschikbaar in Home Assistant
 
 ## Entiteiten
 
 ### 🌡️ Water Heater
 **Hoofdentiteit voor boiler besturing**
 - **Temperatuur**: 10-75°C instelbaar
-- **Modi**: 
-  - `Eco` (SmartControl) - Slimme automatische modus
-  - `Auto` (Schedule) - Volgens weekschema
-  - `Heat Pump` (Continuous) - Altijd aan
-  - `Off` (Holiday) - Vakantie modus
-- **Attributen**: Alle sensor data beschikbaar
+- **Modi**:
+  - `Eco` (SmartControl) - slimme automatische modus
+  - `Auto` (Schedule) - volgens weekschema
+  - `Heat Pump` (Continuous) - continu aan
+  - `Off` (Holiday) - vakantie modus
+- **Attributen**: belangrijkste status-, energie- en PV-data beschikbaar als attributes
 
-### 🔘 Switches (2)
+### 🔽 Select
+- **Device Mode**
+  - Opties: `SmartControl`, `Schedule`, `Continuous`, `Holiday`
+  - Behoudt waar mogelijk bestaande temperatuur en schedule bij mode-wijzigingen
+
+### 🔘 Switches
 - **Boost Mode** 🚀
-  - Activeer snelle opwarming
-  - Status feedback (aan/uit)
-  
+  - Activeer/deactiveer snelle opwarming
+  - Houdt tijdelijk de gekozen UI-status vast totdat de API-status is bijgewerkt
+
+- **Vakantie Modus** 🏝️
+  - Zet de boiler in Holiday mode
+  - Uitzetten schakelt terug naar SmartControl
+
 - **PV Function** ☀️
   - Schakel PV-overschot verwarming aan/uit
-  - Real-time status
+  - Alleen beschikbaar op modellen met ondersteunde PV/smart-grid instellingen
+
+### 🔢 Numbers
+- **Temperatuur Instelling** (10-75°C, stap 1)
+  - Doeltemperatuur voor de boiler
+
+- **PV Start Limit** (0-10 kW, stap 0.1)
+  - Start boiler boven deze PV/netto limiet
+
+- **PV Stop Limit** (0-10 kW, stap 0.1)
+  - Stop boiler onder deze limiet
+
+- **PV Target Temperature** (40-90°C, stap 1)
+  - Doeltemperatuur voor PV-modus
+
+PV numbers zijn alleen beschikbaar wanneer PV/smart-grid instellingen ondersteund worden.
+
+### 📊 Sensors
+**Device Status**
+- `Boiler Content` - Vulgraad (%)
+- `Device State` - Online/offline/status uit de API
+- `Device Power` - Actueel vermogen (kW)
+- `Target Temperature` - Ingestelde doeltemperatuur (°C)
+- `Software Version` - Firmware versie
+- `Legionella Prevention Timer` - Tijd tot preventie (uur)
+
+**Energy Monitoring**
+- `Energy Consumption` - Totaal/verrekend verbruik (kWh)
+- `Energy Saving` - Totale besparing (kWh)
+
+**Schedule Monitoring**
+- `Schedule Monday` t/m `Schedule Sunday` - Dagelijkse schakelmomenten en temperaturen
+- Schedule attributes bevatten gestructureerde entries met `time`, `hour`, `minute` en `temperature`
+
+**PV Monitoring**
+- `PV Net Power` - Netto vermogen (kW, negatief kan teruglevering betekenen)
+- `PV Power Consumption` - Afname van net (kW)
+- `PV Power Production` - Levering aan net (kW)
+
+**PV Settings (read-only sensors)**
+- `PV Enabled` - Status (On/Off)
+- `PV Start Limit` - Huidige startwaarde (kW)
+- `PV Stop Limit` - Huidige stopwaarde (kW)
+
+PV sensors zijn alleen beschikbaar wanneer PV/smart-grid instellingen ondersteund worden.
+
+## Services
+
+De integratie ondersteunt standaard Home Assistant services en eigen services.
 
 ### Water Heater Services (Home Assistant standaard)
 ```yaml
@@ -126,7 +185,16 @@ data:
 service: itho_daalderop.boost_boiler
 data:
   activate: true
+
+# Stel een weekprogramma in
+service: itho_daalderop.set_schedule
+data:
+  schedule:
+    "0": {"0": 10, "800": 60, "17:30": 65}
+    "1": {"0": 10, "800": 60, "17:30": 65}
 ```
+
+Voor `set_schedule` zijn dagen `0-6` maandag-zondag. Tijdstippen mogen als uur (`8`), HHMM (`800`, `1730`) of `HH:MM` worden opgegeven. De integratie zet dit om naar het formaat dat de Climate Connect API verwacht.
 
 ## Automatisering Voorbeelden
 
@@ -147,7 +215,7 @@ automation:
         target:
           entity_id: number.pv_target_temperature
         data:
-          value: 75  # Maximaal opwarmen
+          value: 75
 ```
 
 ### Boost bij lage boiler inhoud
@@ -157,7 +225,7 @@ automation:
     trigger:
       - platform: numeric_state
         entity_id: sensor.boiler_content
-        below: 20  # Onder 20%
+        below: 20
     action:
       - service: switch.turn_on
         target:
@@ -183,45 +251,13 @@ automation:
         data:
           operation_mode: "heat_pump"
 ```
-  
-- **PV Stop Limit** (0-10 kW, stap 0.1)
-  - Stop boiler onder deze limiet
-  
-- **PV Target Temperature** (40-90°C, stap 1)
-  - Doeltemperatuur voor PV-modus
 
-### 📊 Sensors
-**Device Status**
-- `Boiler Content` - Vulgraad (%)
-- `Device State` - Online/Offline status
-- `Device Power` - Actueel vermogen (kW)
-- `Target Temperature` - Ingestelde doeltemperatuur (°C)
-- `Software Version` - Firmware versie
-- `Legionella Timer` - Tijd tot preventie (uur)
+## Polling en API gedrag
 
-**Energy Monitoring**
-- `Energy Consumption` - Totaal verbruik (kWh)
-- `Energy Saving` - Totale besparing (kWh)
-
-**Schedule Monitoring**
-- `Schedule Monday` t/m `Schedule Sunday` - Dagelijkse schakelmomenten en temperaturen
-
-**PV Monitoring**
-- `PV Net Power` - Netto vermogen (kW, - = teruglevering)
-- `PV Power Consumption` - Afname van net (kW)
-- `PV Power Production` - Levering aan net (kW)
-
-**PV Settings (read-only sensors)**
-- `PV Enabled` - Status (On/Off)
-- `PV Start Limit` - Huidige startwaarde (kW)
-- `PV Stop Limit` - Huidige stopwaarde (kW)
-
-## Services
-
-De integratie biedt een Water Heater entity met standaard Home Assistant services:
-
-- `water_heater.set_temperature` - Stel doeltemperatuur in
-- `water_heater.set_operation_mode` - Wijzig bedrijfsmodus
+- Device status wordt iedere `30` seconden opgehaald.
+- Device mode en PV settings worden minder vaak opgehaald, en direct na eigen wijzigingen ververst.
+- Energiehistorie wordt minder frequent opgehaald; de `Energy Consumption` sensor gebruikt daarnaast lokaal geïntegreerd vermogen wanneer beschikbaar.
+- De Climate Connect API kan traag reageren. Timeouts en retries zijn hierop afgestemd.
 
 ## Troubleshooting
 
@@ -232,11 +268,15 @@ De integratie biedt een Water Heater entity met standaard Home Assistant service
 
 ### Token werkt niet?
 - Zorg dat je de **volledige URL** kopieert, inclusief `climateconnect://login?token=`
-- Token is 1 jaar geldig, daarna opnieuw inloggen
+- Token is lang geldig, maar kan opnieuw nodig zijn als de API authenticatie wijzigt
 
 ### Boiler reageert niet?
 - Controleer of het serienummer correct is (hoofdletters!)
 - Controleer of de boiler online is in de Itho app
+- Houd rekening met vertraging in de cloud API; sommige wijzigingen zijn niet direct zichtbaar
+
+### PV-entiteiten ontbreken?
+- Sommige boilermodellen geven via de API alleen nulwaarden terug voor PV/smart-grid instellingen. Voor bekende niet-ondersteunde modellen worden PV-entiteiten daarom verborgen.
 
 ## Licentie
 
@@ -249,10 +289,10 @@ Bijdragen zijn welkom! Zie [CONTRIBUTING.md](CONTRIBUTING.md) voor richtlijnen.
 ## Support
 
 - 📚 [Documentatie](docs/)
-- 🐛 [Issues](https://github.com/yourusername/itho-daalderop-ha/issues)
-- 💬 [Discussions](https://github.com/yourusername/itho-daalderop-ha/discussions)
+- 🐛 [Issues](https://github.com/marinuz/Itho-Daalderop-GES-HA/issues)
+- 💬 [Discussions](https://github.com/marinuz/Itho-Daalderop-GES-HA/discussions)
 
 ## Credits
 
 Ontwikkeld door de Home Assistant community.  
-Gebaseerd op de Itho Daalderop Cloud Connect API.
+Gebaseerd op de Itho Daalderop Climate Connect API.
