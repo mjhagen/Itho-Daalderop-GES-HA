@@ -43,6 +43,8 @@ Home Assistant integratie voor Itho Daalderop boilers via de Climate Connect clo
 - ✅ **Token-based authenticatie** (geen wachtwoord in Home Assistant)
 - ✅ **Retry logic** voor tijdelijke netwerk/API fouten
 - ✅ **Selectieve polling**: snelle statusupdates, minder vaak trage settings/history endpoints
+- ✅ **Verbindingsbewaking** voor mislukte of gestopte polling en 24 uur onveranderde telemetry
+- ✅ **Veilig opnieuw koppelen** via de apparaatknop `Reconnect Itho Account`, met behoud van dezelfde config entry, entity-ID's en historie
 - ✅ **HACS compatible** met integratie-iconen/logo's
 
 ## Installatie via HACS
@@ -130,6 +132,11 @@ Zie de [volledige installatie gids](docs/HACS_INSTALL_GUIDE.md) voor gedetaillee
 PV numbers zijn alleen beschikbaar wanneer PV/smart-grid instellingen ondersteund worden.
 
 ### 📊 Sensors
+**Verbindingsdiagnostiek**
+- `Itho Boiler Connection` - toont connected/stale/disconnected, laatste poll, laatste geslaagde update en laatste telemetrywijziging
+- `Reconnect Itho Account` - start de Itho-login opnieuw binnen dezelfde Home Assistant config entry, zodat bestaande entiteiten en historie behouden blijven
+- Bij drie opeenvolgende API-fouten, vijf minuten zonder polling of 24 uur volledig onveranderde telemetry maakt de integratie een waarschuwing in Home Assistant aan
+
 **Device Status**
 - `Boiler Content` - Vulgraad (%)
 - `Device State` - Online/offline/status uit de API

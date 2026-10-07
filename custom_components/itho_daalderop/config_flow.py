@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -45,6 +46,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.azure_url: str | None = None
         self.access_token: str | None = None
         self.refresh_token: str | None = None
+        self._reauth_entry: ConfigEntry | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -59,6 +61,8 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if len(serial_number) < 5:
                 errors[CONF_SERIAL_NUMBER] = "invalid_serial"
             else:
+                await self.async_set_unique_id(serial_number)
+                self._abort_if_unique_id_configured()
                 self.serial_number = serial_number
                 return await self.async_step_auth()
 
@@ -74,6 +78,20 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "serial_help": "Serienummer van je boiler (bijv. <SERIAL_NUMBER>)"
             },
         )
+
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> FlowResult:
+        """Start reauthentication while retaining the existing config entry."""
+        self._reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        if self._reauth_entry is None:
+            return self.async_abort(reason="reauth_entry_missing")
+
+        self.serial_number = entry_data[CONF_SERIAL_NUMBER]
+        await self.async_set_unique_id(self.serial_number)
+        return await self.async_step_auth()
 
     async def async_step_auth(
         self, user_input: dict[str, Any] | None = None
@@ -171,15 +189,24 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     success, error_key = await self._async_validate_token()
                     
                     if success:
-                        _LOGGER.info("Token validation successful! Creating config entry")
-                        # Create config entry
+                        entry_data = {
+                            CONF_SERIAL_NUMBER: self.serial_number,
+                            CONF_ACCESS_TOKEN: self.access_token,
+                            CONF_REFRESH_TOKEN: self.refresh_token,
+                        }
+                        if self._reauth_entry is not None:
+                            _LOGGER.info("Itho reauthentication successful")
+                            return self.async_update_reload_and_abort(
+                                self._reauth_entry,
+                                unique_id=self.serial_number,
+                                data_updates=entry_data,
+                                reason="reauth_successful",
+                            )
+
+                        _LOGGER.info("Token validation successful; creating config entry")
                         return self.async_create_entry(
                             title=f"Itho Boiler {self.serial_number}",
-                            data={
-                                CONF_SERIAL_NUMBER: self.serial_number,
-                                CONF_ACCESS_TOKEN: self.access_token,
-                                CONF_REFRESH_TOKEN: self.refresh_token,
-                            },
+                            data=entry_data,
                         )
                     else:
                         # Use specific error message from validation

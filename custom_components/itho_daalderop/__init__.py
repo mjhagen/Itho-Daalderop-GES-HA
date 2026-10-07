@@ -2,29 +2,42 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import IthoApiClient
+from .api import IthoApiAuthenticationError, IthoApiClient
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_SERIAL_NUMBER,
+    CONNECTION_FAILURE_WARNING_COUNT,
     DOMAIN,
+    POLL_WATCHDOG_SECONDS,
     PV_UNSUPPORTED_SERIAL_NUMBERS,
+    STALE_TELEMETRY_HOURS,
     UPDATE_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.NUMBER,
+    Platform.SELECT,
+]
 
 # Service schemas
 SERVICE_BOOST_BOILER = "boost_boiler"
@@ -52,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api_client = IthoApiClient(hass, serial_number, access_token)
 
     # Create update coordinator
-    coordinator = IthoDataUpdateCoordinator(hass, api_client)
+    coordinator = IthoDataUpdateCoordinator(hass, entry, api_client)
 
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
@@ -60,6 +73,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    # A separate watchdog detects a coordinator whose scheduled polling has
+    # stopped entirely. It is intentionally independent from the API poll.
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass,
+            coordinator.async_watchdog,
+            timedelta(seconds=POLL_WATCHDOG_SECONDS),
+        )
+    )
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -120,8 +143,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-        
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        persistent_notification.async_dismiss(
+            hass, coordinator.connection_notification_id
+        )
+
         # Remove services if this was the last entry
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_BOOST_BOILER)
@@ -133,8 +159,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 class IthoDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Itho data."""
 
-    def __init__(self, hass: HomeAssistant, api_client: IthoApiClient) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        api_client: IthoApiClient,
+    ) -> None:
         """Initialize."""
+        self.entry = entry
         self.api_client = api_client
         self._update_count = 0  # Track updates for selective polling
         self._force_full_refresh = False  # Force fetch all data on next update
@@ -142,13 +174,113 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         self._calculated_energy_total: float | None = None
         self._last_power_kw: float | None = None
         self._last_energy_timestamp: datetime | None = None
+        self.last_poll_attempt: datetime | None = None
+        self.last_successful_update: datetime | None = None
+        self.last_payload_change: datetime | None = None
+        self.consecutive_failures = 0
+        self._last_payload_signature: tuple[Any, ...] | None = None
+        self._warning_status: str | None = None
 
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
+            always_update=True,
         )
+
+    @property
+    def connection_status(self) -> str:
+        """Return connected, stale, or disconnected for diagnostics."""
+        now = datetime.now(timezone.utc)
+        if self.last_poll_attempt is None:
+            return "disconnected"
+        if (now - self.last_poll_attempt).total_seconds() > POLL_WATCHDOG_SECONDS:
+            return "disconnected"
+        if self.consecutive_failures >= CONNECTION_FAILURE_WARNING_COUNT:
+            return "disconnected"
+
+        device_state = (
+            self.data.get("device_status", {}).get("deviceState")
+            if self.data
+            else None
+        )
+        if isinstance(device_state, str) and device_state.lower() != "online":
+            return "disconnected"
+
+        if (
+            self.last_payload_change is not None
+            and now - self.last_payload_change
+            >= timedelta(hours=STALE_TELEMETRY_HOURS)
+        ):
+            return "stale"
+        return "connected"
+
+    @property
+    def connection_notification_id(self) -> str:
+        """Return the stable persistent-notification ID for this entry."""
+        return f"{DOMAIN}_connection_{self.entry.entry_id}"
+
+    def _sync_connection_warning(self) -> None:
+        """Create or dismiss the connection warning when status changes."""
+        status = self.connection_status
+        if status == self._warning_status:
+            return
+        self._warning_status = status
+
+        if status == "connected":
+            persistent_notification.async_dismiss(
+                self.hass, self.connection_notification_id
+            )
+            return
+
+        if status == "stale":
+            detail = (
+                f"The boiler telemetry has not changed for at least "
+                f"{STALE_TELEMETRY_HOURS} hours. The cloud API may be returning "
+                "an old snapshot even though it reports the boiler as online."
+            )
+        else:
+            detail = (
+                "Home Assistant is no longer receiving successful scheduled "
+                "updates from the Itho integration."
+            )
+
+        persistent_notification.async_create(
+            self.hass,
+            (
+                f"{detail}\n\nOpen the **Itho Boiler Connection** diagnostic "
+                "entity for details. To reconnect without losing entity IDs or "
+                "history, press **Reconnect Itho Account** on the boiler device."
+            ),
+            title="Itho Daalderop connection warning",
+            notification_id=self.connection_notification_id,
+        )
+
+    def _record_successful_status(self, device_status: dict[str, Any]) -> None:
+        """Record transport freshness and meaningful telemetry changes."""
+        now = datetime.now(timezone.utc)
+        signature = tuple(
+            device_status.get(key)
+            for key in (
+                "boilerContent",
+                "boostActive",
+                "devicePowerMeasured",
+                "deviceState",
+                "energyConsumption",
+                "legionellaPreventionTimer",
+            )
+        )
+        if signature != self._last_payload_signature:
+            self._last_payload_signature = signature
+            self.last_payload_change = now
+        self.last_successful_update = now
+        self.consecutive_failures = 0
+
+    async def async_watchdog(self, now: datetime) -> None:
+        """Warn when coordinator polling itself has stopped."""
+        self._sync_connection_warning()
+        self.async_update_listeners()
 
     async def async_force_refresh(self) -> None:
         """Force a full refresh of all data on next update."""
@@ -206,11 +338,13 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from API."""
+        self.last_poll_attempt = datetime.now(timezone.utc)
         try:
             self._update_count += 1
-            
-            # Always fetch critical real-time data (device status)
+
+            # Always fetch critical real-time data (device status).
             device_status = await self.api_client.async_get_device_status()
+            self._record_successful_status(device_status)
             self._update_calculated_energy(device_status)
             
             # Fetch settings only every 5th update OR when forced
@@ -259,11 +393,21 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
 
             self._force_full_refresh = False  # Reset flag after optional fetches
 
-            return {
+            result = {
                 "device_status": device_status,
                 "device_mode": device_mode,
                 "pv_settings": pv_settings,
                 "energy": energy,
             }
+            self._sync_connection_warning()
+            return result
+        except IthoApiAuthenticationError as err:
+            self.consecutive_failures += 1
+            self._sync_connection_warning()
+            raise ConfigEntryAuthFailed(
+                "Itho authentication expired; reconnect the account"
+            ) from err
         except Exception as err:
+            self.consecutive_failures += 1
+            self._sync_connection_warning()
             raise UpdateFailed(f"Error communicating with API: {err}") from err

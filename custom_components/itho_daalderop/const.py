@@ -25,6 +25,9 @@ PV_UNSUPPORTED_SERIAL_NUMBERS = {
 # The device status endpoint is the most important live signal and is now polled
 # selectively, so a shorter interval gives much better UX for boost/state changes.
 UPDATE_INTERVAL = 30  # seconds
+POLL_WATCHDOG_SECONDS = 5 * 60
+STALE_TELEMETRY_HOURS = 24
+CONNECTION_FAILURE_WARNING_COUNT = 3
 
 # Device modes
 MODE_SMART_CONTROL = "SmartControl"

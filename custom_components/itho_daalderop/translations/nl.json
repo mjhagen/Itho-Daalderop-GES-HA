@@ -30,8 +30,10 @@
       "cannot_connect": "Kan geen verbinding maken met de server"
     },
     "abort": {
-      "no_azure_url": "Kon geen login URL ophalen",
-      "already_configured": "Deze boiler is al geconfigureerd"
+      "no_azure_url": "Kon geen inlog-URL ophalen",
+      "already_configured": "Deze boiler is al geconfigureerd",
+      "reauth_entry_missing": "De bestaande Itho-integratie kon niet worden gevonden",
+      "reauth_successful": "Je Itho Daalderop-account is opnieuw gekoppeld"
     }
   }
 }

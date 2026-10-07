@@ -31,7 +31,9 @@
     },
     "abort": {
       "no_azure_url": "Unable to obtain the sign-in URL",
-      "already_configured": "This boiler is already configured"
+      "already_configured": "This boiler is already configured",
+      "reauth_entry_missing": "The existing Itho integration entry could not be found",
+      "reauth_successful": "Your Itho Daalderop account was reconnected successfully"
     }
   }
 }
