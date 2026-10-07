@@ -14,6 +14,11 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .api import IthoApiClient, IthoApiAuthenticationError, IthoApiConnectionError, IthoApiTimeoutError
 from .const import (
@@ -73,7 +78,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_auth(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Get Azure B2C login URL and open browser."""
+        """Get the Azure B2C login URL for the manual token flow."""
         # Build SSO URL
         params = urlencode({
             "redirect": REDIRECT_URI,
@@ -101,8 +106,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         _LOGGER.error("No 'sso' key in response data: %s", data)
                         return self.async_abort(reason="no_azure_url")
                     
-                    _LOGGER.debug("Azure B2C URL received: %s", self.azure_url[:50])
-                    # Open browser and wait for callback
+                    _LOGGER.debug("Azure B2C login URL received")
                     return await self.async_step_auth_callback()
                 else:
                     # Non-200 status
@@ -129,18 +133,15 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             token_input = user_input.get("token", "").strip()
             
-            _LOGGER.info("=== TOKEN INPUT DEBUG ===")
-            _LOGGER.info("Token input length: %d", len(token_input))
-            _LOGGER.info("Token starts with: %s", token_input[:30] if len(token_input) > 30 else token_input)
-            _LOGGER.info("Token ends with: %s", token_input[-30:] if len(token_input) > 30 else token_input)
-            _LOGGER.info("Token parts count: %d", len(token_input.split(".")))
-            
+            # Never log any portion of the callback URL or token: it is a
+            # credential. Length is sufficient when diagnosing malformed input.
+            _LOGGER.debug("Received Itho token input (%d characters)", len(token_input))
+
             # Extract token from URL or use direct token
             token = self._extract_token_from_url(token_input)
             
             if not token:
-                _LOGGER.error("Failed to extract token from input")
-                _LOGGER.error("Input was: %s...", token_input[:100])
+                _LOGGER.error("Failed to extract a token from the supplied input")
                 errors["token"] = "invalid_token"
             else:
                 # First validate it's a proper JWT
@@ -185,18 +186,25 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         _LOGGER.error("Token validation failed: %s", error_key)
                         errors["token"] = error_key or "invalid_token"
 
-        # Show form with browser link
+        # Keep the clickable Markdown link, but also expose the complete URL in
+        # a URL field. Some Home Assistant frontend/language combinations do not
+        # render custom-integration description Markdown, which previously left
+        # users at a token field with no way to start the Itho login flow.
+        login_url = self.azure_url or SSO_INITIATE_URL
         return self.async_show_form(
             step_id="auth_callback",
             data_schema=vol.Schema(
                 {
-                    vol.Required("token"): str,
+                    vol.Optional("login_url", default=login_url): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.URL)
+                    ),
+                    vol.Required("token"): TextSelector(
+                        TextSelectorConfig(multiline=True)
+                    ),
                 }
             ),
             errors=errors,
-            description_placeholders={
-                "login_url": self.azure_url or "https://itho-tussenlaag.bettywebblocks.com/sso/initiate",
-            },
+            description_placeholders={"login_url": login_url},
         )
 
     def _extract_token_from_url(self, token_input: str) -> str | None:
@@ -229,7 +237,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Token extracted from callback URL (length: %d)", len(token))
             return token
         
-        _LOGGER.error("Could not extract token from input (must start with eyJ or be a callback URL): %s", token_input[:50])
+        _LOGGER.error("Token input was neither a JWT nor a Climate Connect callback URL")
         return None
 
     def _decode_token(self, token: str) -> dict[str, Any] | None:

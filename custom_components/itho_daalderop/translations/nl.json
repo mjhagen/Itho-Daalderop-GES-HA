@@ -2,17 +2,22 @@
   "config": {
     "step": {
       "user": {
-        "title": "Itho Daalderop Boiler Instellen",
-        "description": "Voer het serienummer van je boiler in. Je email en wachtwoord voer je in de volgende stap in via de browser.",
+        "title": "Itho Daalderop-boiler instellen",
+        "description": "Voer het serienummer van je boiler in. In de volgende stap log je in bij Itho Daalderop; Home Assistant ontvangt nooit je wachtwoord.",
         "data": {
           "serial_number": "Serienummer"
         }
       },
       "auth_callback": {
-        "title": "Token invoeren",
-        "description": "[Klik hier om in te loggen]({login_url})\n\nNa inloggen zie je een foutpagina. Kopieer dan uit je browser adresbalk het stuk vanaf **eyJ** tot het einde.\n\n",
+        "title": "Koppel je Itho Daalderop-account",
+        "description": "1. [Open de Itho Daalderop-inlogpagina]({login_url}) in een nieuw tabblad. Kun je niet op de link klikken, kopieer dan de onderstaande inlog-URL.\n2. Log in. De browser kan melden dat `climateconnect://` niet kan worden geopend; dit is normaal.\n3. Kopieer het volledige adres `climateconnect://login?token=...`, of alleen de waarde die met `eyJ` begint, en plak dit in het veld Token.\n\nBehandel de token als een wachtwoord.",
         "data": {
-          "token": "Token (vanaf eyJ)"
+          "login_url": "Inlog-URL (open of kopieer naar een nieuw tabblad)",
+          "token": "Callback-URL of token"
+        },
+        "data_description": {
+          "login_url": "Deze eenmalige Itho-inlog-URL wordt automatisch gegenereerd. Vervang hem niet.",
+          "token": "Plak de callback-URL of JWT die je na het inloggen ontvangt."
         }
       }
     },

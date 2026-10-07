@@ -22,16 +22,16 @@
       }
     },
     "error": {
-      "invalid_serial": "Ongeldig serienummer",
-      "invalid_token": "Ongeldige token. De token moet beginnen met eyJ en bestaat uit 3 delen gescheiden door punten",
-      "serial_not_linked": "Dit serienummer is niet gekoppeld aan jouw account. Voeg het apparaat eerst toe in de Itho Daalderop app",
-      "serial_not_found": "Serienummer niet gevonden in het systeem. Controleer of het serienummer correct is",
-      "api_timeout": "API reageert niet. Probeer het later opnieuw",
-      "cannot_connect": "Kan geen verbinding maken met de server"
+      "invalid_serial": "Invalid serial number",
+      "invalid_token": "Invalid token. It must begin with eyJ and contain three dot-separated parts",
+      "serial_not_linked": "This serial number is not linked to your account. Add the device in the Itho Daalderop app first",
+      "serial_not_found": "Serial number not found. Check that it is correct",
+      "api_timeout": "The API did not respond. Try again later",
+      "cannot_connect": "Unable to connect to the server"
     },
     "abort": {
-      "no_azure_url": "Kon geen login URL ophalen",
-      "already_configured": "Deze boiler is al geconfigureerd"
+      "no_azure_url": "Unable to obtain the sign-in URL",
+      "already_configured": "This boiler is already configured"
     }
   }
 }
